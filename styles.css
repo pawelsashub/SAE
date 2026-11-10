@@ -38,6 +38,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   margin: 0;
   background: var(--bg);
@@ -129,7 +130,8 @@ textarea { resize: vertical; min-height: 84px; }
 .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
 
 @media (max-width: 760px) {
-  .shell { grid-template-columns: 1fr; }
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .module { white-space: nowrap; }
   .side { flex-direction: row; align-items: center; gap: 10px; padding: 10px 16px; }
   .modules { margin-left: auto; }
   .conn { margin-top: 0; padding: 7px 9px; }
@@ -140,4 +142,31 @@ textarea { resize: vertical; min-height: 84px; }
   h1 { font-size: 23px; }
   .sheet-link { margin-left: 0; }
   .row2 { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 400px) {
+  .conn-label { display: none; }
+  .conn { padding: 11px; }
+  .head { flex-wrap: wrap; }
+}
+
+/* Mapa procesów: kolumna na każdy etap, kafelek na każdy proces. */
+.map { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(230px, 1fr); gap: 12px; overflow-x: auto; padding-bottom: 8px; align-items: start; }
+.stage { background: var(--accent-soft); border-radius: 12px; padding: 10px; min-width: 0; }
+.stage h2 { margin: 2px 4px 10px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+.stage .item { padding: 11px 12px; margin-bottom: 8px; }
+.stage .item:last-child { margin-bottom: 0; }
+.stage .item h3 { margin: 0; font-size: 14.5px; line-height: 1.35; }
+.stage .item p { font-size: 13.5px; }
+.stage-empty { margin: 0 4px 4px; font-size: 13px; color: var(--muted); }
+.detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.detail-actions .btn { text-decoration: none; font-size: 14px; }
+.toast { margin: 10px 0 0; font-size: 13.5px; color: var(--accent); font-weight: 600; }
+.modules a { cursor: pointer; }
+
+@media (max-width: 760px) {
+  .side { flex-wrap: wrap; }
+  .modules { order: 3; width: 100%; margin-left: 0; display: flex; gap: 6px; overflow-x: auto; }
+  .conn { margin-left: auto; }
+  .map { grid-auto-flow: row; grid-auto-columns: auto; }
 }

@@ -22,32 +22,22 @@
           <small>SAS AI Ecosystem</small>
         </span>
       </a>
-      <nav class="modules" aria-label="Moduły">
-        <p class="nav-label">Moduły</p>
-        <a class="module is-active" href="#" aria-current="page">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 2.5 9 12 14l9.5-5L12 4Z"/><path d="M6.5 11.5V16c0 1.4 2.5 3 5.5 3s5.5-1.6 5.5-3v-4.5"/></svg>
-          AI Academy
-        </a>
-        <p class="nav-hint">Kolejne moduły pojawią się tutaj.</p>
-      </nav>
-      <button class="conn" id="connBtn" type="button"><span class="dot" id="connDot"></span>Połączenie</button>
+      <nav class="modules" id="modules" aria-label="Moduły"></nav>
+      <button class="conn" id="connBtn" type="button" aria-label="Połączenie"><span class="dot" id="connDot"></span><span class="conn-label">Połączenie</span></button>
     </aside>
 
     <main class="main">
       <header class="head">
         <div>
-          <h1>AI Academy</h1>
-          <p class="sub">Co chcę przerobić ja i czego ma się nauczyć mój system AI.</p>
+          <h1 id="title"></h1>
+          <p class="sub" id="sub"></p>
         </div>
         <button class="btn primary" id="addBtn" type="button">+ Dodaj</button>
       </header>
 
       <div class="demo" id="banner" role="status"></div>
 
-      <div class="tabs" role="tablist">
-        <button role="tab" class="tab" data-tab="me" type="button">Me to Learn <span class="count" id="countMe"></span></button>
-        <button role="tab" class="tab" data-tab="claude" type="button">Claude to Learn <span class="count" id="countClaude"></span></button>
-      </div>
+      <div class="tabs" id="tabs" role="tablist"></div>
 
       <div class="tools">
         <input id="search" type="search" placeholder="Szukaj…" aria-label="Szukaj">
@@ -56,6 +46,7 @@
       </div>
 
       <ul class="list" id="list"></ul>
+      <div class="map" id="map" hidden></div>
       <p class="empty" id="empty" hidden>Brak pozycji dla tych filtrów.</p>
     </main>
   </div>

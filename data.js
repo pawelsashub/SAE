@@ -24,6 +24,29 @@ export const DICT = {
     "Rezygnacja",
   ],
   claudePriority: ["Wysoki", "Średni", "Niski"],
+  interviewStatus: ["Planowany", "W toku", "Przeprowadzony", "Opracowany", "Przesunięty", "Anulowany"],
+  processStage: [
+    "Sprzedaż i oferta",
+    "Start projektu",
+    "Planowanie i przygotowanie",
+    "Realizacja",
+    "Rozliczenie i zamknięcie",
+    "Stałe i wspierające",
+  ],
+  processStatus: ["Szkic", "Do potwierdzenia", "Potwierdzony"],
+  sourceType: [
+    "Folder Google Drive",
+    "Dokument Google",
+    "Arkusz Google",
+    "Prezentacja Google",
+    "Asana",
+    "E-mail",
+    "Strona www",
+    "Plik (PDF, Excel, inne)",
+    "Inne",
+  ],
+  sourceStatus: ["Do przejrzenia", "Przejrzane", "Zmapowane"],
+  scheduleStatus: ["Planowane", "W toku", "Zrobione", "Przesunięte", "Anulowane"],
   claudeCategory: [
     "Konektor",
     "Wtyczka / aplikacja",
@@ -59,5 +82,59 @@ export const CLAUDE_ITEMS = [
     category: "Skill",
     priority: "Średni",
     status: "Do rozważenia",
+  },
+];
+
+export const INTERVIEW_ITEMS = [
+  {
+    nr: 1,
+    date: "10.11.2026",
+    name: "Przykład: Kowalska Anna",
+    role: "Kierownik projektu",
+    topic: "Tak wygląda wpis rozmowy z członkiem zespołu. Po połączeniu z arkuszami zobaczysz tu swoje rozmowy.",
+    status: "Planowany",
+  },
+];
+
+export const SOURCE_ITEMS = [
+  {
+    nr: 1,
+    name: "Przykład: folder z ofertami",
+    type: "Folder Google Drive",
+    link: "https://example.com",
+    desc: "Tak wygląda wpis źródła danych: miejsce, w którym firma trzyma informacje.",
+    status: "Do przejrzenia",
+  },
+];
+
+export const PROCESS_ITEMS = [
+  {
+    nr: 1,
+    name: "Przykład: przygotowanie oferty",
+    stage: "Sprzedaż i oferta",
+    short: "Tak wygląda kafelek procesu na mapie.",
+    desc: "Po kliknięciu widać pełny opis procesu, narzędzia, problemy i materiały.",
+    tools: "Arkusze Google, e-mail",
+    status: "Szkic",
+  },
+  {
+    nr: 2,
+    name: "Przykład: realizacja na miejscu",
+    stage: "Realizacja",
+    short: "Procesy układają się w kolumnach według etapu.",
+    status: "Szkic",
+  },
+];
+
+export const SCHEDULE_ITEMS = [
+  {
+    nr: "R1",
+    name: "Przykład: rozmowa z kierownikiem projektu",
+    type: "Rozmowa",
+    week: "T1",
+    from: "02.11.2026",
+    to: "06.11.2026",
+    desc: "Tak wygląda pozycja harmonogramu mapowania. Po połączeniu z arkuszami zobaczysz tu swój plan.",
+    status: "Planowane",
   },
 ];
