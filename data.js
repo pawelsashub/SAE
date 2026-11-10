@@ -33,7 +33,34 @@ export const DICT = {
     "Rozliczenie i zamknięcie",
     "Stałe i wspierające",
   ],
+  processArea: [
+    "Strategia i biznes",
+    "Klient i projekty",
+    "Finanse",
+    "Operacje i system firmy",
+    "Ludzie i wiedza",
+    "Impact, ESG, rozwój",
+    "Bezpieczeństwo i compliance",
+  ],
   processStatus: ["Szkic", "Do potwierdzenia", "Potwierdzony"],
+  processType: ["Zarządczy", "Główny", "Wspierający"],
+  stepKind: ["Czynność", "Decyzja", "Start", "Koniec"],
+  personStatus: ["Pracuje", "Nie pracuje", "Do potwierdzenia"],
+  personForm: ["Zespół", "Współpracownik zewnętrzny", "Firma zewnętrzna"],
+  toolCategory: [
+    "Pliki i dokumenty",
+    "Komunikacja",
+    "Zarządzanie projektami",
+    "Grafika i prezentacje",
+    "AI",
+    "Finanse i księgowość",
+    "Automatyzacje",
+    "Social media",
+    "Infrastruktura",
+    "Inne",
+  ],
+  toolStatus: ["W użyciu", "Do potwierdzenia"],
+  noteTarget: ["Proces", "Krok", "Osoba", "Narzędzie", "Źródło danych", "Wywiad", "Ogólna"],
   sourceType: [
     "Folder Google Drive",
     "Dokument Google",
@@ -111,6 +138,9 @@ export const PROCESS_ITEMS = [
   {
     nr: 1,
     name: "Przykład: przygotowanie oferty",
+    area: "Klient i projekty",
+    type: "Główny",
+    who: "Anna Kowalska",
     stage: "Sprzedaż i oferta",
     short: "Tak wygląda kafelek procesu na mapie.",
     desc: "Po kliknięciu widać pełny opis procesu, narzędzia, problemy i materiały.",
@@ -119,9 +149,9 @@ export const PROCESS_ITEMS = [
   },
   {
     nr: 2,
-    name: "Przykład: realizacja na miejscu",
-    stage: "Realizacja",
-    short: "Procesy układają się w kolumnach według etapu.",
+    name: "Przykład: obieg faktur",
+    area: "Finanse",
+    short: "Procesy układają się w kolumnach według obszaru firmy.",
     status: "Szkic",
   },
 ];
@@ -136,5 +166,72 @@ export const SCHEDULE_ITEMS = [
     to: "06.11.2026",
     desc: "Tak wygląda pozycja harmonogramu mapowania. Po połączeniu z arkuszami zobaczysz tu swój plan.",
     status: "Planowane",
+  },
+];
+
+// Przykłady dla widoków powiązań. Nazwiska i narzędzia są zmyślone.
+export const STEP_ITEMS = [
+  {
+    nr: "K1",
+    name: "Przykład: wycena od dostawców",
+    order: "1",
+    process: "1",
+    next: "K2; K1 (poprawki)",
+    kind: "Czynność",
+    stage: "Sprzedaż i oferta",
+    short: "Tak wygląda krok procesu opisany w rozmowie.",
+    desc: "Krok łączy się z osobami, narzędziami i procesami po nazwach, więc te same dane widać w kilku przekrojach.",
+    people: "Anna Kowalska, Jan Nowak",
+    tools: "Arkusz kosztorysu, Poczta",
+    problems: "Wyceny przychodzą w różnych formatach.",
+    ideas: "Automatyczne zbieranie wycen do tabeli.",
+    related: "1",
+    status: "Szkic",
+  },
+  {
+    nr: "K2",
+    name: "Przykład: akceptacja klienta",
+    order: "2",
+    process: "1",
+    next: "",
+    kind: "Decyzja",
+    stage: "Start projektu",
+    short: "Kroki łączą się strzałkami według kolumny „Następny krok”.",
+    people: "Anna Kowalska",
+    tools: "Poczta",
+    status: "Szkic",
+  },
+];
+
+export const PEOPLE_ITEMS = [
+  { nr: 1, name: "Anna Kowalska", alias: "", role: "Kierownik projektu", form: "Zespół", status: "Pracuje" },
+  { nr: 2, name: "Jan Nowak", alias: "", role: "Finanse", form: "Zespół", status: "Do potwierdzenia" },
+];
+
+export const TOOL_ITEMS = [
+  { nr: 1, name: "Arkusz kosztorysu", alias: "", category: "Pliki i dokumenty", desc: "Wycena projektu.", status: "W użyciu" },
+  { nr: 2, name: "Poczta", alias: "", category: "Komunikacja", desc: "Korespondencja z dostawcami.", status: "W użyciu" },
+];
+
+export const HANDOFF_ITEMS = [
+  {
+    nr: 1,
+    from: "Anna Kowalska",
+    to: "Jan Nowak",
+    name: "Przykład: komplet danych do faktury.",
+    channel: "Poczta",
+    step: "K1",
+    status: "Szkic",
+  },
+];
+
+export const NOTE_ITEMS = [
+  {
+    nr: 1,
+    date: "10.11.2026",
+    target: "Krok",
+    element: "K1",
+    name: "Przykład: notatkę można dopisać do procesu, kroku, osoby albo narzędzia.",
+    author: "",
   },
 ];

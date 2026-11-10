@@ -1,4 +1,11 @@
-import { SHEETS, DICT, ME_ITEMS, CLAUDE_ITEMS, INTERVIEW_ITEMS, SOURCE_ITEMS, PROCESS_ITEMS, SCHEDULE_ITEMS } from "./data.js";
+// Numer wersji w adresie zmieniaj razem z index.html, żeby przeglądarki pobrały nowe pliki.
+import {
+  SHEETS, DICT, ME_ITEMS, CLAUDE_ITEMS, INTERVIEW_ITEMS, SOURCE_ITEMS, PROCESS_ITEMS, SCHEDULE_ITEMS,
+  STEP_ITEMS, PEOPLE_ITEMS, TOOL_ITEMS, HANDOFF_ITEMS, NOTE_ITEMS,
+} from "./data.js?v=7";
+
+// Firmy w module Business Mapping. Każda kolejna firma dostanie własny arkusz.
+const COMPANIES = [{ id: "ewesa", name: "Ewesa" }];
 
 // Moduły aplikacji i ich zakładki.
 const MODULES = {
@@ -11,27 +18,21 @@ const MODULES = {
   },
   mapping: {
     label: "Business Mapping",
-    title: "Business Mapping · Ewesa",
-    sub: "Rozmowy z zespołem, źródła danych, mapa procesów i harmonogram mapowania.",
-    tabs: ["interviews", "sources", "processes", "schedule"],
+    title: "Business Mapping",
+    sub: "Mapa firmy z różnych stron: procesy, kroki, osoby, narzędzia, przekazania pracy i źródła danych.",
+    tabs: ["processes", "steps", "people", "tools", "handoffs", "sources", "interviews", "schedule", "notes"],
     icon: '<rect x="3" y="4" width="6" height="5" rx="1"/><rect x="15" y="4" width="6" height="5" rx="1"/><rect x="9" y="15" width="6" height="5" rx="1"/><path d="M6 9v3h12V9M12 12v3"/>',
   },
 };
 
 // Opis zakładek: przykładowe dane, pola na karcie, w szczegółach i w formularzu.
+// `noteAs` to nazwa typu elementu w zakładce „Notatki”; zakładki z tym polem mają notatki i przycisk dodawania.
 const TABS = {
   me: {
-    label: "Me to Learn",
-    seed: ME_ITEMS,
-    newestFirst: true,
-    statuses: DICT.meStatus,
-    defaults: { status: "Do zapoznania się" },
-    excerpt: "desc",
+    label: "Me to Learn", seed: ME_ITEMS, newestFirst: true, statuses: DICT.meStatus,
+    defaults: { status: "Do zapoznania się" }, excerpt: "desc",
     meta: (it) => [it.source, it.area, it.date],
-    detail: [
-      ["Opis", "desc"], ["Źródło", "source"], ["Obszar wdrożenia AI", "area"],
-      ["Materiały", "materials"], ["Uwagi", "notes"], ["Data wpisu", "date"],
-    ],
+    detail: [["Opis", "desc"], ["Źródło", "source"], ["Obszar wdrożenia AI", "area"], ["Materiały", "materials"], ["Uwagi", "notes"], ["Data wpisu", "date"]],
     form: [
       { key: "name", label: "Nazwa", required: true },
       { key: "materials", label: "Link lub materiał", placeholder: "https://…" },
@@ -42,11 +43,8 @@ const TABS = {
     ],
   },
   claude: {
-    label: "Claude to Learn",
-    seed: CLAUDE_ITEMS,
-    statuses: DICT.claudeStatus,
-    defaults: { status: "Do rozważenia", priority: "Średni" },
-    excerpt: "desc",
+    label: "Claude to Learn", seed: CLAUDE_ITEMS, statuses: DICT.claudeStatus,
+    defaults: { status: "Do rozważenia", priority: "Średni" }, excerpt: "desc",
     meta: (it) => [it.category, it.context, it.date],
     detail: [
       ["Opis umiejętności", "desc"], ["Przykładowa sytuacja", "example"], ["Kontekst / projekt", "context"],
@@ -63,18 +61,125 @@ const TABS = {
       { key: "status", label: "Status", options: DICT.claudeStatus },
     ],
   },
-  interviews: {
-    label: "Wywiady",
-    seed: INTERVIEW_ITEMS,
-    newestFirst: true,
-    statuses: DICT.interviewStatus,
-    defaults: { status: "Planowany" },
-    excerpt: "topic",
-    meta: (it) => [it.role, it.date],
-    detail: [
-      ["Stanowisko", "role"], ["Data", "date"], ["Temat rozmowy", "topic"], ["Podsumowanie", "summary"],
-      ["Procesy z rozmowy", "processes"], ["Uwagi", "notes"],
+  processes: {
+    label: "Mapa procesów", seed: PROCESS_ITEMS, view: "map", statuses: DICT.processStatus, noteAs: "Proces",
+    groupings: [
+      {
+        key: "type", label: "Układ: mapa firmy", groups: DICT.processType, none: "Bez typu", bands: true,
+        titles: {
+          "Zarządczy": "Zarządzanie: nadaje kierunek i kontroluje",
+          "Główny": "Łańcuch główny: to, za co płaci klient",
+          "Wspierający": "Wsparcie: dostarcza zasoby łańcuchowi głównemu",
+        },
+      },
+      { key: "area", label: "Układ: obszary", groups: DICT.processArea, none: "Bez obszaru" },
     ],
+    defaults: { status: "Szkic", area: DICT.processArea[1], type: "Główny" }, excerpt: "short",
+    meta: (it) => [
+      ownSteps(it).length ? `Schemat: ${ownSteps(it).length} kroków` : countLabel(stepsOfProcess(it).length, "powiązane kroki"),
+      phasesOf(it).join(" → "),
+      it.who,
+    ],
+    detail: [
+      ["Obszar", "area"], ["Typ", "type"], ["Krótki opis", "short"], ["Opis szczegółowy", "desc"], ["Kto wykonuje", "who"],
+      ["Narzędzia", "tools"], ["Problemy i wąskie gardła", "problems"], ["Pomysły na AI", "ideas"], ["Materiały", "materials"],
+      ["Źródło informacji", "source"], ["Proces AOP", "aop"], ["Kategoria APQC", "apqc"], ["Uwagi", "notes"],
+    ],
+    form: [
+      { key: "name", label: "Proces", required: true },
+      { key: "area", label: "Obszar", options: DICT.processArea },
+      { key: "type", label: "Typ", options: DICT.processType },
+      { key: "short", label: "Krótki opis (na kafelek)" },
+      { key: "desc", label: "Opis szczegółowy", type: "textarea" },
+      { key: "who", label: "Kto wykonuje" },
+      { key: "source", label: "Źródło informacji" },
+      { key: "status", label: "Status", options: DICT.processStatus },
+    ],
+  },
+  steps: {
+    label: "Kroki", seed: STEP_ITEMS, view: "map", statuses: DICT.processStatus, noteAs: "Krok",
+    groupings: [{ key: "stage", label: "Układ: etapy", groups: DICT.processStage, none: "Bez etapu" }],
+    excerpt: "short",
+    meta: (it) => [it.nr, it.people],
+    detail: [
+      ["Kod", "nr"], ["Etap", "stage"], ["Rodzaj", "kind"], ["Następny krok", "next"],
+      ["Krótki opis", "short"], ["Opis szczegółowy", "desc"], ["Osoby i role", "people"],
+      ["Narzędzia", "tools"], ["Problemy i wąskie gardła", "problems"], ["Pomysły na AI", "ideas"], ["Materiały", "materials"],
+      ["Projekt przykładowy", "project"], ["Źródło informacji", "source"], ["Uwagi", "notes"],
+      ["Godziny miesięcznie", "hours"], ["Rodzaj wejścia", "input"], ["Reguły czy ocena (1–5)", "rules"],
+      ["Wyjątki i warianty", "exceptions"], ["Ekspozycja AI", "exposure"], ["Tryb", "mode"],
+      ["Wartość (0–3)", "value"], ["Wykonalność (0–3)", "feasibility"], ["Ryzyko (0–3)", "risk"],
+    ],
+  },
+  people: {
+    label: "Osoby", seed: PEOPLE_ITEMS, statuses: DICT.personStatus, noteAs: "Osoba",
+    defaults: { status: "Do potwierdzenia", form: "Zespół" }, excerpt: "role",
+    meta: (it) => [it.form, countLabel(stepsOfPerson(it).length, "kroki"), countLabel(processesOfPerson(it).length, "procesy")],
+    detail: [["Stanowisko / rola", "role"], ["Forma", "form"], ["Źródło informacji", "source"], ["Uwagi", "notes"]],
+    form: [
+      { key: "name", label: "Osoba (imię i nazwisko)", required: true },
+      { key: "alias", label: "Inne formy imienia, po średniku", placeholder: "Ola; Olą" },
+      { key: "role", label: "Stanowisko / rola" },
+      { key: "form", label: "Forma", options: DICT.personForm },
+      { key: "status", label: "Status", options: DICT.personStatus },
+      { key: "notes", label: "Uwagi", type: "textarea" },
+    ],
+  },
+  tools: {
+    label: "Narzędzia", seed: TOOL_ITEMS, view: "map", statuses: DICT.toolStatus, noteAs: "Narzędzie",
+    groupings: [{ key: "category", label: "Układ: kategorie", groups: DICT.toolCategory, none: "Bez kategorii", hideEmpty: true }],
+    defaults: { status: "W użyciu", category: DICT.toolCategory[0] }, excerpt: "desc",
+    meta: (it) => [countLabel(stepsOfTool(it).length, "kroki"), countLabel(peopleOfTool(it).length, "osoby")],
+    detail: [["Kategoria", "category"], ["Do czego służy", "desc"], ["Źródło informacji", "source"], ["Uwagi", "notes"]],
+    form: [
+      { key: "name", label: "Narzędzie", required: true },
+      { key: "alias", label: "Inne nazwy, po średniku" },
+      { key: "category", label: "Kategoria", options: DICT.toolCategory },
+      { key: "desc", label: "Do czego służy", type: "textarea" },
+      { key: "status", label: "Status", options: DICT.toolStatus },
+      { key: "notes", label: "Uwagi", type: "textarea" },
+    ],
+  },
+  handoffs: {
+    label: "Przekazania", seed: HANDOFF_ITEMS, statuses: DICT.processStatus,
+    defaults: { status: "Szkic" }, excerpt: "name",
+    title: (it) => `${it.from || "?"} → ${it.to || "?"}`,
+    meta: (it) => [it.step, it.channel, it.problem ? `Problem: ${it.problem}` : ""],
+    detail: [["Co jest przekazywane", "name"], ["Od", "from"], ["Do", "to"], ["Kanał", "channel"], ["Krok", "step"], ["Problem", "problem"], ["Źródło informacji", "source"]],
+    form: [
+      { key: "from", label: "Od (osoba)", required: true },
+      { key: "to", label: "Do (osoba)", required: true },
+      { key: "name", label: "Co jest przekazywane", type: "textarea", required: true },
+      { key: "channel", label: "Kanał", placeholder: "Gmail, rozmowa, Asana…" },
+      { key: "step", label: "Krok (kod)", placeholder: "K6" },
+      { key: "problem", label: "Problem" },
+      { key: "status", label: "Status", options: DICT.processStatus },
+    ],
+  },
+  sources: {
+    label: "Źródła danych", seed: SOURCE_ITEMS, statuses: DICT.sourceStatus, noteAs: "Źródło danych",
+    defaults: { status: "Do przejrzenia", type: "Folder Google Drive" }, excerpt: "desc",
+    meta: (it) => [it.type, it.owner, it.processes],
+    detail: [
+      ["Typ", "type"], ["Link", "link"], ["Co zawiera", "desc"], ["Właściciel", "owner"],
+      ["Powiązane procesy i kroki", "processes"], ["Źródło informacji", "source"], ["Data dodania", "date"], ["Uwagi", "notes"],
+    ],
+    form: [
+      { key: "name", label: "Nazwa", required: true },
+      { key: "link", label: "Link", placeholder: "https://…" },
+      { key: "type", label: "Typ", options: DICT.sourceType },
+      { key: "desc", label: "Co zawiera", type: "textarea" },
+      { key: "owner", label: "Właściciel" },
+      { key: "processes", label: "Powiązane kroki lub procesy", placeholder: "K4, K12" },
+      { key: "source", label: "Źródło informacji", placeholder: "Kto o tym powiedział" },
+      { key: "status", label: "Status", options: DICT.sourceStatus },
+    ],
+  },
+  interviews: {
+    label: "Wywiady", seed: INTERVIEW_ITEMS, newestFirst: true, statuses: DICT.interviewStatus, noteAs: "Wywiad",
+    defaults: { status: "Planowany" }, excerpt: "topic",
+    meta: (it) => [it.role, it.date],
+    detail: [["Stanowisko", "role"], ["Data", "date"], ["Temat rozmowy", "topic"], ["Podsumowanie", "summary"], ["Kroki z rozmowy", "processes"], ["Uwagi", "notes"]],
     form: [
       { key: "name", label: "Osoba (nazwisko i imię)", required: true, placeholder: "Falkiewicz Adrianna" },
       { key: "role", label: "Stanowisko" },
@@ -84,65 +189,27 @@ const TABS = {
     ],
     formHint: "Zapis doda wiersz w arkuszu i założy folder rozmowy z dokumentem na transkrypcję.",
   },
-  sources: {
-    label: "Źródła danych",
-    seed: SOURCE_ITEMS,
-    statuses: DICT.sourceStatus,
-    defaults: { status: "Do przejrzenia", type: "Folder Google Drive" },
-    excerpt: "desc",
-    meta: (it) => [it.type, it.owner, it.date],
-    detail: [
-      ["Typ", "type"], ["Link", "link"], ["Co zawiera", "desc"], ["Właściciel", "owner"],
-      ["Powiązane procesy", "processes"], ["Źródło informacji", "source"], ["Data dodania", "date"], ["Uwagi", "notes"],
-    ],
-    form: [
-      { key: "name", label: "Nazwa", required: true },
-      { key: "link", label: "Link", placeholder: "https://…" },
-      { key: "type", label: "Typ", options: DICT.sourceType },
-      { key: "desc", label: "Co zawiera", type: "textarea" },
-      { key: "owner", label: "Właściciel" },
-      { key: "source", label: "Źródło informacji", placeholder: "Kto o tym powiedział" },
-      { key: "status", label: "Status", options: DICT.sourceStatus },
-    ],
-  },
-  processes: {
-    label: "Mapa procesów",
-    seed: PROCESS_ITEMS,
-    view: "map",
-    statuses: DICT.processStatus,
-    defaults: { status: "Szkic", stage: DICT.processStage[0] },
-    excerpt: "short",
-    meta: (it) => [it.who, it.tools],
-    detail: [
-      ["Etap", "stage"], ["Krótki opis", "short"], ["Opis szczegółowy", "desc"], ["Kto wykonuje", "who"],
-      ["Narzędzia", "tools"], ["Problemy i wąskie gardła", "problems"], ["Pomysły na AI", "ideas"],
-      ["Materiały", "materials"], ["Źródło informacji", "source"], ["Proces AOP", "aop"], ["Uwagi", "notes"],
-    ],
-    form: [
-      { key: "name", label: "Proces", required: true },
-      { key: "stage", label: "Etap", options: DICT.processStage },
-      { key: "short", label: "Krótki opis (na kafelek)" },
-      { key: "desc", label: "Opis szczegółowy", type: "textarea" },
-      { key: "who", label: "Kto wykonuje" },
-      { key: "tools", label: "Narzędzia" },
-      { key: "problems", label: "Problemy i wąskie gardła", type: "textarea" },
-      { key: "materials", label: "Materiały (linki)", type: "textarea" },
-      { key: "source", label: "Źródło informacji", placeholder: "Kto o tym powiedział" },
-      { key: "status", label: "Status", options: DICT.processStatus },
-    ],
-  },
   schedule: {
-    label: "Harmonogram",
-    seed: SCHEDULE_ITEMS,
-    statuses: DICT.scheduleStatus,
-    excerpt: "desc",
+    label: "Harmonogram", seed: SCHEDULE_ITEMS, statuses: DICT.scheduleStatus, excerpt: "desc",
     meta: (it) => [it.nr, it.type, it.week, it.from && it.to ? `${it.from} – ${it.to}` : "", it.owner],
     detail: [
       ["Kod", "nr"], ["Typ", "type"], ["Tydzień", "week"], ["Od", "from"], ["Do", "to"], ["Zakres / po co", "desc"],
       ["Odpowiedzialny / dostarcza", "owner"], ["Procesy AOP", "aop"], ["Priorytet", "priority"],
       ["Data wykonania", "done"], ["Link / wynik", "link"], ["Uwagi", "notes"],
     ],
-    // bez formularza: pozycje harmonogramu dodaje się w arkuszu
+  },
+  notes: {
+    label: "Notatki", seed: NOTE_ITEMS, newestFirst: true, statuses: [], excerpt: "name",
+    title: (it) => it.element || it.target || "Notatka",
+    defaults: { target: "Ogólna" },
+    meta: (it) => [it.target, it.date, it.author],
+    detail: [["Notatka", "name"], ["Dotyczy", "target"], ["Element", "element"], ["Data", "date"], ["Autor", "author"]],
+    form: [
+      { key: "target", label: "Dotyczy", options: DICT.noteTarget },
+      { key: "element", label: "Element (nazwa albo kod)", placeholder: "K4, Saldeo, Adrianna Falkiewicz…" },
+      { key: "name", label: "Notatka", type: "textarea", required: true },
+      { key: "author", label: "Autor" },
+    ],
   },
 };
 
@@ -156,6 +223,7 @@ const TONE = {
   "Szkic": "off", "Do potwierdzenia": "todo", "Potwierdzony": "done",
   "Do przejrzenia": "todo", "Przejrzane": "prog", "Zmapowane": "done",
   "Planowane": "idea", "Zrobione": "done", "Przesunięte": "off", "Anulowane": "off",
+  "Pracuje": "done", "Nie pracuje": "off", "W użyciu": "done",
 };
 
 const LOCAL_KEY = "sae.localItems.v1";
@@ -176,8 +244,10 @@ const saved = readStore(VIEW_KEY, {});
 const state = {
   module: MODULES[saved.module] ? saved.module : "academy",
   tab: "me",
+  company: COMPANIES[0].id,
   query: "",
   status: "",
+  grouping: {},                      // wybrany układ mapy dla zakładki
   conn: readStore(CONN_KEY, null),   // { url, token } albo null
   live: null,                        // { zakładka: [wiersze] } z arkuszy
   sheetUrls: {},                     // adresy zakładek podane przez skrypt
@@ -185,6 +255,8 @@ const state = {
   error: "",
   notice: "",
   local: readStore(LOCAL_KEY, {}),
+  trail: [],                         // ścieżka w oknie szczegółów: [{ tab, id }]
+  flowLayout: "phases",              // układ schematu procesu: phases | wide | lanes
 };
 state.tab = MODULES[state.module].tabs.includes(saved.tab) ? saved.tab : MODULES[state.module].tabs[0];
 
@@ -201,7 +273,7 @@ async function api(payload, conn = state.conn) {
   return data;
 }
 
-// Pobiera wszystkie zakładki. Starsza wersja skryptu zna tylko AI Academy, wtedy bierzemy to, co potrafi.
+// Pobiera wszystkie zakładki. Starsza wersja skryptu zna mniej zakładek, wtedy bierzemy to, co potrafi.
 async function fetchAll(conn) {
   try {
     const res = await api({ action: "load", tabs: ALL_TABS }, conn);
@@ -232,6 +304,8 @@ function itemsOf(tab) {
     const rows = state.live[tab].map((it) => ({ ...it, id: tab + it.nr }));
     return TABS[tab].newestFirst ? rows.reverse() : rows;
   }
+  // Po połączeniu nie mieszamy przykładów z prawdziwymi danymi: zakładka, której skrypt jeszcze nie zna, jest pusta.
+  if (state.live) return [];
   const seed = TABS[tab].seed.map((it) => ({ ...it, id: tab + it.nr }));
   return [...(state.local[tab] || []), ...seed];
 }
@@ -244,7 +318,123 @@ function visibleItems() {
   });
 }
 
+// ---- Powiązania między elementami mapy ----
+// Arkusz trzyma nazwy w zwykłym tekście („Adrianna Falkiewicz, Patryk Hensel”), więc łączymy po nazwie lub aliasie.
+
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// Czy tekst zawiera nazwę jako osobne słowo (żeby „Ola” nie pasowała do „szkolenia”).
+function mentions(text, names) {
+  const hay = String(text || "");
+  return names.some((n) => new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRe(n)}($|[^\\p{L}\\p{N}])`, "iu").test(hay));
+}
+const namesOf = (it) => [it.name, ...String(it.alias || "").split(";")].map((s) => s.trim()).filter((s) => s.length >= 3);
+const countLabel = (n, word) => (n ? `${word}: ${n}` : "");
+
+// Kody kroków z tekstu, także zakresy: „K4, K12” albo „K1–K12”.
+function stepCodes(text) {
+  const out = new Set();
+  const s = String(text || "");
+  for (const m of s.matchAll(/K(\d+)\s*[–-]\s*K(\d+)/g)) {
+    for (let i = Number(m[1]); i <= Number(m[2]) && i - Number(m[1]) < 200; i++) out.add("K" + i);
+  }
+  for (const m of s.matchAll(/K\d+/g)) out.add(m[0]);
+  return out;
+}
+const processNumbers = (text) => new Set(String(text || "").match(/\d+/g) || []);
+
+const byOrder = (a, b) => (Number(a.order) || 0) - (Number(b.order) || 0);
+
+// Kroki należące do procesu (kolumna „Proces”) w kolejności wykonywania i ich fazy.
+const ownSteps = (p) => itemsOf("steps").filter((s) => String(s.process ?? "").trim() === String(p.nr)).sort(byOrder);
+const phasesOf = (p) => [...new Set(ownSteps(p).map((s) => s.stage).filter(Boolean))];
+// Kroki innych procesów, które tylko wskazują ten proces w kolumnie „Powiązane procesy”.
+const linkedSteps = (p) => itemsOf("steps").filter((s) => String(s.process ?? "").trim() !== String(p.nr) && processNumbers(s.related).has(String(p.nr)));
+const stepsOfProcess = (p) => [...ownSteps(p), ...linkedSteps(p)];
+const processesOfStep = (s) => itemsOf("processes").filter((p) =>
+  String(s.process ?? "").trim() === String(p.nr) || processNumbers(s.related).has(String(p.nr)));
+const stepsOfPerson = (person) => itemsOf("steps").filter((s) => mentions(s.people, namesOf(person)));
+const processesOfPerson = (person) => itemsOf("processes").filter((p) => mentions(p.who, namesOf(person)));
+const peopleOfText = (text) => itemsOf("people").filter((person) => mentions(text, namesOf(person)));
+const stepsOfTool = (tool) => itemsOf("steps").filter((s) => mentions(s.tools, namesOf(tool)));
+const toolsOfText = (text) => itemsOf("tools").filter((tool) => mentions(text, namesOf(tool)));
+const peopleOfTool = (tool) => uniq(stepsOfTool(tool).flatMap((s) => peopleOfText(s.people)));
+const sourcesOfStep = (s) => itemsOf("sources").filter((src) => stepCodes(src.processes).has(String(s.nr)));
+const handoffsOfStep = (s) => itemsOf("handoffs").filter((h) => stepCodes(h.step).has(String(s.nr)));
+
+function uniq(items) {
+  const seen = new Set();
+  return items.filter((it) => !seen.has(it.id) && seen.add(it.id));
+}
+
+// Notatki do elementu: po nazwie albo kodzie w kolumnie „Element”.
+function notesOf(tab, it) {
+  const kind = TABS[tab].noteAs;
+  if (!kind) return [];
+  const keys = [it.name, String(it.nr)].map((s) => String(s).trim().toLowerCase());
+  return itemsOf("notes").filter((n) => n.target === kind && keys.includes(String(n.element || "").trim().toLowerCase()));
+}
+
+// Sekcje powiązań w oknie szczegółów: [nagłówek, zakładka, elementy].
+function relationsOf(tab, it) {
+  if (tab === "processes") {
+    const steps = stepsOfProcess(it);
+    return [
+      ["Kroki tego procesu", "steps", ownSteps(it)],
+      ["Kroki innych procesów, które go dotyczą", "steps", linkedSteps(it)],
+      ["Osoby", "people", uniq([...peopleOfText(it.who), ...steps.flatMap((s) => peopleOfText(s.people))])],
+      ["Narzędzia", "tools", uniq(steps.flatMap((s) => toolsOfText(s.tools)))],
+      ["Źródła danych", "sources", uniq(steps.flatMap(sourcesOfStep))],
+    ];
+  }
+  if (tab === "steps") {
+    return [
+      ["Procesy firmy", "processes", processesOfStep(it)],
+      ["Osoby", "people", peopleOfText(it.people)],
+      ["Narzędzia", "tools", toolsOfText(it.tools)],
+      ["Przekazania pracy", "handoffs", handoffsOfStep(it)],
+      ["Źródła danych", "sources", sourcesOfStep(it)],
+    ];
+  }
+  if (tab === "people") {
+    const steps = stepsOfPerson(it);
+    const names = namesOf(it);
+    return [
+      ["Procesy według AOP", "processes", processesOfPerson(it)],
+      ["Kroki, w których bierze udział", "steps", steps],
+      ["Narzędzia w tych krokach", "tools", uniq(steps.flatMap((s) => toolsOfText(s.tools)))],
+      ["Przekazuje pracę", "handoffs", itemsOf("handoffs").filter((h) => mentions(h.from, names))],
+      ["Otrzymuje pracę", "handoffs", itemsOf("handoffs").filter((h) => mentions(h.to, names))],
+      ["Źródła danych, których jest właścicielem", "sources", itemsOf("sources").filter((s) => mentions(s.owner, names))],
+    ];
+  }
+  if (tab === "tools") {
+    const steps = stepsOfTool(it);
+    return [
+      ["Kroki, w których jest używane", "steps", steps],
+      ["Osoby", "people", peopleOfTool(it)],
+      ["Procesy firmy", "processes", uniq(steps.flatMap(processesOfStep))],
+    ];
+  }
+  if (tab === "handoffs") {
+    return [
+      ["Od", "people", peopleOfText(it.from)],
+      ["Do", "people", peopleOfText(it.to)],
+      ["Krok", "steps", itemsOf("steps").filter((s) => stepCodes(it.step).has(String(s.nr)))],
+    ];
+  }
+  if (tab === "sources") {
+    return [
+      ["Kroki", "steps", itemsOf("steps").filter((s) => stepCodes(it.processes).has(String(s.nr)))],
+      ["Właściciel", "people", peopleOfText(it.owner)],
+    ];
+  }
+  return [];
+}
+
 // ---- Widok ----
+
+const titleOf = (tab, it) => (TABS[tab].title ? TABS[tab].title(it) : it.name);
 
 function renderBanner() {
   const b = $("banner");
@@ -256,7 +446,7 @@ function renderBanner() {
   } else if (state.error) {
     html = `<strong>Brak połączenia z arkuszami.</strong> ${esc(state.error)} ${state.live ? "" : "Poniżej przykładowe dane. "}<button type="button" data-refresh>Spróbuj ponownie</button>`;
   } else if (state.live && !tabIsLive(state.tab)) {
-    html = `<strong>Ten moduł wymaga nowszej wersji skryptu.</strong> Zaktualizuj skrypt w Apps Script, żeby zobaczyć tu dane z arkusza. Poniżej przykładowe dane. <button type="button" data-refresh>Odśwież</button>`;
+    html = `<strong>Ta zakładka wymaga nowszej wersji skryptu.</strong> Zaktualizuj skrypt w Apps Script, żeby zobaczyć tu dane z arkusza. <button type="button" data-refresh>Odśwież</button>`;
   } else if (state.live) {
     html = `<strong>Połączono z arkuszami.</strong> Nowe pozycje trafiają prosto do arkusza. <button type="button" data-refresh>Odśwież</button>`;
   } else {
@@ -266,28 +456,47 @@ function renderBanner() {
   b.innerHTML = html;
 }
 
-function card(it, cfg, tag = "h2") {
+function card(tab, it, tag = "h2") {
+  const cfg = TABS[tab];
   const meta = cfg.meta(it).filter(Boolean).map((m) => `<span>${esc(m)}</span>`).join("");
   const prio = it.priority ? `<span class="${it.priority === "Wysoki" ? "high" : ""}">Priorytet: ${esc(it.priority)}</span>` : "";
   const mark = it.local ? `<span class="local">Tylko w tej przeglądarce</span>` : "";
   const text = it[cfg.excerpt];
-  return `<button class="item" type="button" data-id="${esc(it.id)}">
-    <div class="item-top"><${tag}>${esc(it.name)}</${tag}>${it.status ? `<span class="pill ${TONE[it.status] || "off"}">${esc(it.status)}</span>` : ""}</div>
+  return `<button class="item" type="button" data-open="${esc(tab)}|${esc(it.id)}">
+    <div class="item-top"><${tag}>${esc(titleOf(tab, it))}</${tag}>${it.status ? `<span class="pill ${TONE[it.status] || "off"}">${esc(it.status)}</span>` : ""}</div>
     ${text ? `<p>${esc(text)}</p>` : ""}
     <div class="meta">${prio}${meta}${mark}</div>
   </button>`;
 }
 
-function renderMap(items, cfg) {
-  const stages = [...DICT.processStage];
-  items.forEach((it) => { if (it.stage && !stages.includes(it.stage)) stages.push(it.stage); });
-  const noStage = items.filter((it) => !it.stage);
-  const column = (title, list) => `<section class="stage">
+function currentGrouping(tab) {
+  const list = TABS[tab].groupings || [];
+  const chosen = list.find((g) => g.key === state.grouping[tab]);
+  if (chosen) return chosen;
+  // Układ domyślny ma sens tylko wtedy, gdy dane mają pole, po którym grupuje (np. starszy skrypt nie zwraca typu).
+  return list.find((g) => itemsOf(tab).some((it) => it[g.key])) || list[0];
+}
+
+function renderMap(tab, items) {
+  const g = currentGrouping(tab);
+  const groups = [...g.groups];
+  items.forEach((it) => { if (it[g.key] && !groups.includes(it[g.key])) groups.push(it[g.key]); });
+  const rest = items.filter((it) => !it[g.key]);
+  if (g.bands) {
+    // Mapa firmy: pasy jeden pod drugim, w każdym kafelki procesów.
+    const band = (name, list) => `<section class="band band-${groups.indexOf(name)}">
+      <h2>${esc(g.titles?.[name] || name)} <span>${list.length}</span></h2>
+      <div class="band-grid">${list.map((it) => card(tab, it, "h3")).join("") || `<p class="stage-empty">Brak pozycji</p>`}</div>
+    </section>`;
+    return groups.map((name) => band(name, items.filter((it) => it[g.key] === name))).join("") +
+      (rest.length ? band(g.none, rest) : "");
+  }
+  const column = (title, list) => (g.hideEmpty && !list.length ? "" : `<section class="stage">
     <h2><span>${esc(title)}</span><span>${list.length}</span></h2>
-    ${list.map((it) => card(it, cfg, "h3")).join("") || `<p class="stage-empty">Brak procesów</p>`}
-  </section>`;
-  return stages.map((s) => column(s, items.filter((it) => it.stage === s))).join("") +
-    (noStage.length ? column("Bez etapu", noStage) : "");
+    ${list.sort(byOrder).map((it) => card(tab, it, "h3")).join("") || `<p class="stage-empty">Brak pozycji</p>`}
+  </section>`);
+  return groups.map((name) => column(name, items.filter((it) => it[g.key] === name))).join("") +
+    (rest.length ? column(g.none, rest) : "");
 }
 
 function render() {
@@ -299,27 +508,35 @@ function render() {
   $("modules").innerHTML = `<p class="nav-label">Moduły</p>` + Object.entries(MODULES).map(([key, m]) =>
     `<a class="module${key === state.module ? " is-active" : ""}" data-module="${key}" role="button" tabindex="0">
       <svg viewBox="0 0 24 24" aria-hidden="true">${m.icon}</svg>${esc(m.label)}</a>`).join("");
-  $("title").textContent = mod.title;
+  const company = COMPANIES.find((c) => c.id === state.company);
+  $("title").textContent = state.module === "mapping" ? `${mod.title} · ${company.name}` : mod.title;
   $("sub").textContent = mod.sub;
+  $("companyBar").hidden = state.module !== "mapping";
+  $("company").innerHTML = COMPANIES.map((c) => `<option value="${esc(c.id)}"${c.id === state.company ? " selected" : ""}>${esc(c.name)}</option>`).join("");
   $("tabs").innerHTML = mod.tabs.map((key) =>
     `<button role="tab" class="tab" data-tab="${key}" type="button" aria-selected="${key === state.tab}">${esc(TABS[key].label)} <span class="count">${itemsOf(key).length}</span></button>`).join("");
 
+  $("statusFilter").hidden = !cfg.statuses.length;
   $("statusFilter").innerHTML = `<option value="">Wszystkie statusy</option>` +
     cfg.statuses.map((s) => `<option${s === state.status ? " selected" : ""}>${esc(s)}</option>`).join("");
+
+  const groupings = cfg.groupings || [];
+  $("groupBy").hidden = groupings.length < 2;
+  $("groupBy").innerHTML = groupings.map((g) => `<option value="${g.key}"${g === currentGrouping(state.tab) ? " selected" : ""}>${esc(g.label)}</option>`).join("");
 
   const url = state.sheetUrls[state.tab] || SHEETS[state.tab]?.url;
   $("sheetLink").hidden = !url;
   if (url) $("sheetLink").href = url;
-
   $("addBtn").hidden = !cfg.form;
 
   const items = visibleItems();
   const isMap = cfg.view === "map";
   $("list").hidden = isMap;
   $("map").hidden = !isMap;
-  $("empty").hidden = isMap || items.length > 0;
-  if (isMap) $("map").innerHTML = renderMap(items, cfg);
-  else $("list").innerHTML = items.map((it) => `<li>${card(it, cfg)}</li>`).join("");
+  $("empty").hidden = items.length > 0;
+  $("map").classList.toggle("bands", isMap && Boolean(currentGrouping(state.tab).bands));
+  if (isMap) $("map").innerHTML = items.length ? renderMap(state.tab, items) : "";
+  else $("list").innerHTML = items.map((it) => `<li>${card(state.tab, it)}</li>`).join("");
 }
 
 const isWebUrl = (u) => /^https?:\/\/\S+$/i.test(String(u));
@@ -348,60 +565,214 @@ Data: ${it.date || "dziś"}
 Temat: ${it.topic || "jak wygląda praca rozmówcy od początku do końca"}
 
 Twoja rola
-- Prowadź rozmowę po polsku. Zadawaj jedno pytanie naraz i idź po kolei, od początku procesu do końca.
-- Dopytuj o konkrety: kto to robi, w jakim narzędziu, skąd bierze dane, co dzieje się dalej, co się psuje, co zabiera najwięcej czasu.
+- Prowadź rozmowę po polsku. Zadawaj jedno pytanie naraz i idź po kolei, od tego, co uruchamia pracę, do jej wyniku.
+- Dopytuj o konkrety: kto to robi, w jakim narzędziu, skąd bierze dane, komu przekazuje pracę dalej, co się psuje, ile to trwa i jak często się zdarza.
+- Proś o pokazanie ostatniego prawdziwego przykładu zamiast opisu ogólnego.
 - Gdy pada link do Google Workspace albo Asany, otwórz go, opisz w dwóch zdaniach, co zawiera, i poproś o potwierdzenie.
 - Niczego nie zgaduj. Rzeczy niepewne oznacz jako „do potwierdzenia”.
+
+Arkusz: ${sheet}
+Zanim cokolwiek zapiszesz, odczytaj nagłówki z wiersza 4 danej zakładki i wpisuj wartości według nazw kolumn, nie według ich kolejności. Dane zaczynają się w wierszu 5. Nie nadpisuj istniejących wierszy: nowe dopisuj pod ostatnim.
 
 Gdzie zapisywać
 1. Transkrypcja i notatki: dokument ${it.transcript || "w folderze rozmowy"}
    Dopisuj na bieżąco w sekcji „Transkrypcja”, a linki w sekcji „Linki i materiały”.
-2. Procesy: zakładka „Procesy” w arkuszu ${sheet}
-   Jeden wiersz na proces: Proces, Etap, Krótki opis (jedno zdanie), Opis szczegółowy, Kto wykonuje, Narzędzia, Problemy i wąskie gardła, Pomysły na AI, Materiały, Źródło informacji (${it.name}), Status „Szkic”.
-3. Źródła danych: zakładka „Źródła danych” w tym samym arkuszu
-   Jeden wiersz na każdy link lub miejsce z danymi: Nazwa, Typ, Link (pełny adres), Co zawiera, Właściciel, Źródło informacji (${it.name}), Data dodania, Status „Do przejrzenia”.
-4. Po rozmowie: zakładka „Team members interviews”, wiersz Nr ${it.nr ?? "tej rozmowy"}
-   Uzupełnij Podsumowanie, Procesy z rozmowy (numery z zakładki „Procesy”) i zmień Status na „Przeprowadzony”.
+2. Zakładka „Kroki”: jeden wiersz na każdy krok pracy opisany przez rozmówcę.
+   Kod (K i kolejny wolny numer), Krok, Kolejność, Proces (numer procesu z zakładki „Procesy”, do którego krok należy), Następny krok (kody kroków po średniku; powód przejścia w nawiasie, np. „K5; K4 (poprawki klienta)”), Rodzaj (Czynność albo Decyzja), Etap, Krótki opis (jedno zdanie), Opis szczegółowy, Osoby i role (imię i nazwisko tak jak w zakładce „Osoby”), Narzędzia (nazwy tak jak w zakładce „Narzędzia”), Problemy i wąskie gardła, Pomysły na AI, Materiały, Źródło informacji (${it.name}), Powiązane procesy (numery z zakładki „Procesy”), Projekt przykładowy, Status „Szkic”.
+   Jeśli rozmówca potrafi to oszacować, wypełnij też: Godziny miesięcznie, Rodzaj wejścia (cyfrowe ustrukturyzowane, cyfrowe nieustrukturyzowane, niecyfrowe), Reguły czy ocena (1–5), Wyjątki i warianty (mało, średnio, dużo).
+3. Zakładka „Przekazania”: jeden wiersz za każdym razem, gdy praca przechodzi od jednej osoby do drugiej: Od, Do, Co jest przekazywane, Kanał, Krok (kod), Problem, Źródło informacji, Status „Szkic”.
+4. Zakładka „Źródła danych”: jeden wiersz na każdy link lub miejsce z danymi: Nazwa, Typ, Link (pełny adres), Co zawiera, Właściciel, Powiązane procesy (kody kroków, np. K4, K12), Źródło informacji (${it.name}), Data dodania, Status „Do przejrzenia”.
+5. Zakładki „Osoby” i „Narzędzia”: dopisz osobę albo narzędzie, jeśli pojawia się w rozmowie, a nie ma go na liście.
+6. Zakładki „Procesy” nie zmieniaj. To lista procesów firmy; kroki łączą się z nią przez numery w kolumnie „Powiązane procesy”.
+7. Po rozmowie: zakładka „Team members interviews”, wiersz Nr ${it.nr ?? "tej rozmowy"}.
+   Uzupełnij Stanowisko, Podsumowanie, Procesy z rozmowy (kody kroków) i zmień Status na „Przeprowadzony”.
 
-Zasady arkusza
-- Nagłówki są w wierszu 4, dane od wiersza 5. Nowy wiersz dostaje Nr o jeden większy od najwyższego.
-- Wartości pól Etap, Typ i Status bierz z zakładki „Słowniki”.
+Zasady
+- Wartości pól Etap, Typ, Forma, Kategoria i Status bierz z zakładki „Słowniki”.
+- Listy numerów i kodów wpisuj jako tekst, żeby arkusz nie zamienił ich na daty.
 - Zanim zapiszesz większą porcję, pokaż krótkie podsumowanie do akceptacji.
 ${it.folder ? `\nFolder rozmowy: ${it.folder}\n` : ""}
 Zacznij od krótkiego przedstawienia celu rozmowy i pierwszego pytania.`;
 }
 
-function detailActions(it) {
-  if (state.tab !== "interviews" || it.local) return "";
-  const link = (url, label) => isWebUrl(url) ? `<a class="btn" href="${esc(url)}" target="_blank" rel="noopener">${label} ↗</a>` : "";
-  return `<div class="detail-actions">
-    <button class="btn primary" type="button" data-copy-prompt="${esc(it.id)}">Kopiuj instrukcję dla Claude</button>
-    <a class="btn" href="https://claude.ai/new" target="_blank" rel="noopener">Otwórz Claude ↗</a>
-    ${link(it.folder, "Folder")}${link(it.transcript, "Transkrypcja")}
-  </div><p class="toast" id="copyNote" hidden></p>`;
+function detailActions(tab, it) {
+  if (it.local) return "";
+  const buttons = [];
+  if (TABS[tab].noteAs && TABS.notes.form) {
+    buttons.push(`<button class="btn" type="button" data-note="${esc(tab)}|${esc(it.id)}">+ Notatka</button>`);
+  }
+  if (tab === "interviews") {
+    const link = (url, label) => isWebUrl(url) ? `<a class="btn" href="${esc(url)}" target="_blank" rel="noopener">${label} ↗</a>` : "";
+    buttons.unshift(
+      `<button class="btn primary" type="button" data-copy-prompt="${esc(it.id)}">Kopiuj instrukcję dla Claude</button>`,
+      `<a class="btn" href="https://claude.ai/new" target="_blank" rel="noopener">Otwórz Claude ↗</a>`,
+      link(it.folder, "Folder"), link(it.transcript, "Transkrypcja"));
+  }
+  return buttons.length ? `<div class="detail-actions">${buttons.join("")}</div><p class="toast" id="copyNote" hidden></p>` : "";
 }
 
-function openDetail(id) {
-  const cfg = TABS[state.tab];
-  const it = itemsOf(state.tab).find((x) => x.id === id);
-  if (!it) return;
+const findItem = (tab, id) => itemsOf(tab).find((x) => x.id === id);
+
+function renderDetail() {
+  const here = state.trail[state.trail.length - 1];
+  const it = here && findItem(here.tab, here.id);
+  if (!it) { $("detail").close(); return; }
+  const tab = here.tab;
+  const cfg = TABS[tab];
   const rows = cfg.detail.filter(([, k]) => it[k])
     .map(([label, k]) => `<div><dt>${esc(label)}</dt><dd>${fieldValue(it, k)}</dd></div>`).join("");
-  const url = state.sheetUrls[state.tab] || SHEETS[state.tab]?.url;
+
+  const relations = relationsOf(tab, it).filter(([, , list]) => list.length).map(([label, toTab, list]) =>
+    `<section class="rel"><h3>${esc(label)} (${list.length})</h3><ul>${list.map((x) =>
+      `<li><button class="chip" type="button" data-go="${esc(toTab)}|${esc(x.id)}">${toTab === "steps" || toTab === "processes" ? `<small>${esc(x.nr)}</small> ` : ""}${esc(titleOf(toTab, x))}</button></li>`).join("")}</ul></section>`).join("");
+
+  const notes = notesOf(tab, it);
+  const notesHtml = notes.length ? `<section class="rel"><h3>Notatki (${notes.length})</h3><ul class="rel-notes">${notes.map((n) =>
+    `<li>${esc(n.name)}<small>${esc([n.date, n.author].filter(Boolean).join(" · "))}</small></li>`).join("")}</ul></section>` : "";
+
+  const url = state.sheetUrls[tab] || SHEETS[tab]?.url;
   const more = it.local
     ? "Ta pozycja jest zapisana tylko w tej przeglądarce."
     : url ? `Edycja wpisu w arkuszu: <a href="${esc(url)}" target="_blank" rel="noopener">otwórz zakładkę ↗</a>` : "";
+  const back = state.trail.length > 1 ? `<button class="back" type="button" data-back>← Wróć</button>` : "";
+
+  const hasFlow = tab === "processes" && ownSteps(it).length > 0;
+  const flow = hasFlow ? `<section class="flow">
+      <div class="flow-head"><h3>Schemat procesu</h3>
+        <select id="flowLayout" aria-label="Układ schematu">
+          ${[["phases", "Fazy z góry na dół"], ["wide", "Fazy od lewej do prawej"], ["lanes", "Tory osób"]].map(([v, l]) =>
+            `<option value="${v}"${v === state.flowLayout ? " selected" : ""}>${l}</option>`).join("")}
+        </select></div>
+      <div class="flow-box" id="flowBox">Rysuję schemat…</div>
+      <p class="flow-legend"><i></i>krok z opisanym problemem. Kliknij krok, żeby zobaczyć szczegóły.</p>
+    </section>` : "";
+
+  $("detail").classList.toggle("wide", Boolean(relations) && !hasFlow);
+  $("detail").classList.toggle("xwide", hasFlow);
   $("detail").innerHTML = `<div class="dialog-body">
+    ${back}
     <div class="dialog-head">
-      <div>${it.status ? `<span class="pill ${TONE[it.status] || "off"}">${esc(it.status)}</span>` : ""}<h2 style="margin-top:8px">${esc(it.name)}</h2></div>
+      <div><span class="pill off">${esc(cfg.label)}</span> ${it.status ? `<span class="pill ${TONE[it.status] || "off"}">${esc(it.status)}</span>` : ""}<h2 style="margin-top:8px">${esc(titleOf(tab, it))}</h2></div>
       <button class="close" type="button" data-close aria-label="Zamknij">×</button>
     </div>
+    ${flow}
     <dl class="fields">${rows}</dl>
-    ${detailActions(it)}
+    ${relations}
+    ${notesHtml}
+    ${detailActions(tab, it)}
     ${more ? `<p class="more">${more}</p>` : ""}
-    ${it.local ? `<div class="actions"><button class="btn" type="button" data-remove="${esc(it.id)}">Usuń</button></div>` : ""}
+    ${it.local ? `<div class="actions"><button class="btn" type="button" data-remove="${esc(tab)}|${esc(it.id)}">Usuń</button></div>` : ""}
   </div>`;
-  $("detail").showModal();
+  if (!$("detail").open) $("detail").showModal();
+  $("detail").scrollTop = 0;
+  if (hasFlow) drawFlow(it);
+}
+
+// ---- Schemat procesu (biblioteka Mermaid, pobierana przy pierwszym użyciu) ----
+
+let mermaidLoading;
+function loadMermaid() {
+  return (mermaidLoading ||= import("https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.esm.min.mjs").then((m) => {
+    const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+    m.default.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+      theme: dark ? "dark" : "neutral",
+      themeVariables: { fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif", fontSize: "14px" },
+      flowchart: { useMaxWidth: false, htmlLabels: true, curve: "basis" },
+    });
+    return m.default;
+  }));
+}
+
+// Tekst z arkusza nie może zmienić składni schematu, więc znaki specjalne zamieniamy na kody.
+const mmText = (s) => String(s ?? "").replace(/[^\p{L}\p{N} .,:;!?%+\/–-]/gu, (c) => `#${c.codePointAt(0)};`);
+const shorten = (s, n) => (String(s || "").length > n ? String(s).slice(0, n - 1).trimEnd() + "…" : String(s || ""));
+
+// Następne kroki z kolumny „Następny krok”: „K5; K4 (kolejna wersja)”.
+function nextOf(step) {
+  return [...String(step.next || "").matchAll(/(K\d+)\s*(?:\(([^)]*)\))?/g)].map((m) => ({ code: m[1], label: m[2] || "" }));
+}
+
+function flowText(proc, layout) {
+  const steps = ownSteps(proc);
+  const ids = new Map(steps.map((s, i) => [String(s.nr), /^[A-Za-z0-9_]+$/.test(String(s.nr)) ? String(s.nr) : "N" + i]));
+  // Tor kroku to osoba wymieniona w nim jako pierwsza.
+  const firstPerson = (s) => {
+    const text = String(s.people || "").toLowerCase();
+    const at = (person) => Math.min(...namesOf(person).map((n) => text.indexOf(n.toLowerCase())).filter((i) => i >= 0));
+    return peopleOfText(s.people).sort((a, b) => at(a) - at(b))[0];
+  };
+  const laneOf = (s) => (layout === "lanes" ? (firstPerson(s)?.name || "Pozostali") : (s.stage || "Bez etapu"));
+  const groups = [];
+  steps.forEach((s) => {
+    const name = laneOf(s);
+    (groups.find((g) => g.name === name) || groups[groups.push({ name, steps: [] }) - 1]).steps.push(s);
+  });
+
+  const node = (s) => {
+    const who = shorten(s.people, 44);
+    const label = `${mmText(s.nr)} · ${mmText(shorten(s.name, 48))}${who ? `<br/>${mmText(who)}` : ""}`;
+    const id = ids.get(String(s.nr));
+    if (s.kind === "Decyzja") return `${id}{"${label}"}`;
+    if (s.kind === "Start" || s.kind === "Koniec") return `${id}(["${label}"])`;
+    return `${id}["${label}"]`;
+  };
+
+  const lines = [`flowchart ${layout === "wide" ? "LR" : "TB"}`];
+  groups.forEach((g, i) => {
+    lines.push(`subgraph G${i}["${mmText(g.name)}"]`, ...g.steps.map(node), "end");
+  });
+  // Bez kolumny „Następny krok” łączymy kroki po kolei.
+  const anyNext = steps.some((s) => nextOf(s).length);
+  steps.forEach((s, i) => {
+    const targets = anyNext ? nextOf(s) : steps[i + 1] ? [{ code: String(steps[i + 1].nr), label: "" }] : [];
+    targets.filter((t) => ids.has(t.code)).forEach((t) =>
+      lines.push(`${ids.get(String(s.nr))} -->${t.label ? `|${mmText(t.label)}|` : ""} ${ids.get(t.code)}`));
+  });
+  const warn = steps.filter((s) => s.problems).map((s) => ids.get(String(s.nr)));
+  lines.push("classDef warn fill:#fdf0d5,stroke:#b7791f,color:#3b2a00;");
+  if (warn.length) lines.push(`class ${warn.join(",")} warn;`);
+  return { text: lines.join("\n"), ids };
+}
+
+async function drawFlow(proc) {
+  const box = $("flowBox");
+  if (!box) return;
+  const { text, ids } = flowText(proc, state.flowLayout);
+  try {
+    const mermaid = await loadMermaid();
+    const { svg } = await mermaid.render("flow" + Date.now(), text);
+    if (!box.isConnected) return; // okno pokazuje już coś innego
+    box.innerHTML = svg;
+    // Schemat niewiele szerszy od okna dopasowujemy do szerokości; bardzo szeroki zostaje czytelny i przewija się.
+    const drawing = box.querySelector("svg");
+    const width = drawing.getBoundingClientRect().width;
+    if (width <= box.clientWidth * 1.5) { drawing.style.maxWidth = "100%"; drawing.style.height = "auto"; }
+    else box.scrollLeft = (width - box.clientWidth) / 2;
+    const byId = new Map([...ids].map(([code, id]) => [id, code]));
+    box.querySelectorAll("g.node").forEach((n) => {
+      const code = byId.get((n.id.match(/^flowchart-(.+)-\d+$/) || [])[1]);
+      const step = code && itemsOf("steps").find((s) => String(s.nr) === code);
+      if (!step) return;
+      n.style.cursor = "pointer";
+      n.setAttribute("tabindex", "0");
+      n.setAttribute("role", "button");
+      const open = () => openDetail("steps", step.id, true);
+      n.addEventListener("click", open);
+      n.addEventListener("keydown", (e) => { if (e.key === "Enter") open(); });
+    });
+  } catch (err) {
+    if (!box.isConnected) return;
+    // Bez biblioteki (np. brak internetu) pokazujemy kroki jako listę.
+    box.innerHTML = `<p class="hint">Nie udało się narysować schematu (${esc(err.message || err)}). Kroki po kolei:</p><ol>${
+      ownSteps(proc).map((s) => `<li>${esc(s.nr)} · ${esc(s.name)}</li>`).join("")}</ol>`;
+  }
+}
+
+function openDetail(tab, id, keepTrail = false) {
+  state.trail = keepTrail ? [...state.trail, { tab, id }] : [{ tab, id }];
+  renderDetail();
 }
 
 function isoToday() {
@@ -411,24 +782,28 @@ function isoToday() {
 }
 const plDate = (iso) => iso.split("-").reverse().join(".");
 
-function openForm() {
-  const cfg = TABS[state.tab];
+// Formularz dodawania. `preset` wypełnia pola z góry (np. notatka do konkretnego elementu).
+function openForm(tab = state.tab, preset = {}) {
+  const cfg = TABS[tab];
+  if (!cfg.form) return;
+  const defaults = { ...(cfg.defaults || {}), ...preset };
   const fields = cfg.form.map((f) => {
     const req = f.required ? " required" : "";
+    const val = defaults[f.key] ?? "";
     let control;
     if (f.options) {
-      control = `<select name="${f.key}">${f.options.map((o) => `<option${o === cfg.defaults[f.key] ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+      control = `<select name="${f.key}">${f.options.map((o) => `<option${o === val ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
     } else if (f.type === "textarea") {
-      control = `<textarea name="${f.key}"${req}></textarea>`;
+      control = `<textarea name="${f.key}"${req}>${esc(val)}</textarea>`;
     } else if (f.type === "date") {
       control = `<input name="${f.key}" type="date" value="${isoToday()}"${req}>`;
     } else {
-      control = `<input name="${f.key}" placeholder="${esc(f.placeholder || "")}"${req}>`;
+      control = `<input name="${f.key}" value="${esc(val)}" placeholder="${esc(f.placeholder || "")}"${req}>`;
     }
     return `<label>${esc(f.label)}${control}</label>`;
   }).join("");
-  const live = tabIsLive(state.tab);
-  $("form").innerHTML = `<form class="dialog-body" id="addForm">
+  const live = tabIsLive(tab);
+  $("form").innerHTML = `<form class="dialog-body" id="addForm" data-tab="${esc(tab)}">
     <div class="dialog-head"><h2>Nowa pozycja: ${esc(cfg.label)}</h2>
       <button class="close" type="button" data-close aria-label="Zamknij">×</button></div>
     ${fields}
@@ -480,20 +855,22 @@ document.addEventListener("submit", (e) => {
   const data = Object.fromEntries(new FormData(form));
 
   if (form.id === "addForm") {
+    const tab = form.dataset.tab;
     withBusy(form, "addError", async () => {
       state.notice = "";
-      state.status = "";
-      if (tabIsLive(state.tab)) {
-        const res = await api({ action: "add", tab: state.tab, item: data });
+      if (tab === state.tab) state.status = "";
+      if (tabIsLive(tab)) {
+        const res = await api({ action: "add", tab, item: data });
         state.notice = res.warning || "";
         await refresh();
       } else {
         const item = { ...data, id: "l" + Date.now(), local: true };
         item.date = plDate(data.date || isoToday());
-        (state.local[state.tab] ||= []).unshift(item);
+        (state.local[tab] ||= []).unshift(item);
         writeStore(LOCAL_KEY, state.local);
         render();
       }
+      if ($("detail").open) renderDetail();
     });
   }
 
@@ -512,7 +889,7 @@ document.addEventListener("submit", (e) => {
 });
 
 async function copyPrompt(id) {
-  const it = itemsOf("interviews").find((x) => x.id === id);
+  const it = findItem("interviews", id);
   const note = $("copyNote");
   if (!it || !note) return;
   try {
@@ -524,8 +901,10 @@ async function copyPrompt(id) {
   note.hidden = false;
 }
 
+const split = (value) => { const i = value.indexOf("|"); return [value.slice(0, i), value.slice(i + 1)]; };
+
 document.addEventListener("click", (e) => {
-  const t = e.target.closest("[data-module], [data-tab], [data-id], [data-close], [data-remove], [data-refresh], [data-conn], [data-disconnect], [data-copy-prompt], #addBtn, #connBtn");
+  const t = e.target.closest("[data-module], [data-tab], [data-open], [data-go], [data-back], [data-note], [data-close], [data-remove], [data-refresh], [data-conn], [data-disconnect], [data-copy-prompt], #addBtn, #connBtn");
   if (!t) return;
   const d = t.dataset;
   if (d.module) {
@@ -534,10 +913,18 @@ document.addEventListener("click", (e) => {
     render();
   }
   else if (d.tab) { state.tab = d.tab; state.status = ""; render(); }
-  else if (d.id) openDetail(d.id);
+  else if (d.open) openDetail(...split(d.open));
+  else if (d.go) openDetail(...split(d.go), true);
+  else if ("back" in d) { state.trail.pop(); renderDetail(); }
+  else if (d.note) {
+    const [tab, id] = split(d.note);
+    const it = findItem(tab, id);
+    if (it) openForm("notes", { target: TABS[tab].noteAs, element: tab === "steps" ? String(it.nr) : it.name });
+  }
   else if (d.copyPrompt) copyPrompt(d.copyPrompt);
   else if (d.remove) {
-    state.local[state.tab] = (state.local[state.tab] || []).filter((x) => x.id !== d.remove);
+    const [tab, id] = split(d.remove);
+    state.local[tab] = (state.local[tab] || []).filter((x) => x.id !== id);
     writeStore(LOCAL_KEY, state.local);
     t.closest("dialog").close();
     render();
@@ -564,6 +951,11 @@ document.querySelectorAll("dialog").forEach((dlg) => dlg.addEventListener("click
 
 $("search").addEventListener("input", (e) => { state.query = e.target.value; render(); });
 $("statusFilter").addEventListener("change", (e) => { state.status = e.target.value; render(); });
+$("groupBy").addEventListener("change", (e) => { state.grouping[state.tab] = e.target.value; render(); });
+$("company").addEventListener("change", (e) => { state.company = e.target.value; render(); });
+$("detail").addEventListener("change", (e) => {
+  if (e.target.id === "flowLayout") { state.flowLayout = e.target.value; renderDetail(); }
+});
 
 render();
 refresh();
