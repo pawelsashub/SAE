@@ -210,3 +210,27 @@ textarea { resize: vertical; min-height: 84px; }
 .flow-box g.node:hover { opacity: .8; }
 .flow-legend { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
 .flow-legend i { width: 14px; height: 12px; border-radius: 6px; background: #fff; border: 1px dashed #5d6b68; flex: none; }
+
+/* Widok tabeli, układ jak w arkuszu. */
+.table-wrap { overflow: auto; max-height: 75vh; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.grid { border-collapse: separate; border-spacing: 0; table-layout: fixed; width: max-content; font-size: 13.5px; }
+.grid th { position: sticky; top: 0; z-index: 2; background: var(--side); color: var(--side-ink); text-align: left; font-weight: 600; padding: 9px 10px; white-space: nowrap; }
+.grid td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+.grid tbody tr { cursor: pointer; }
+.grid tbody tr:nth-child(even) td { background: var(--bg); }
+.grid tbody tr:hover td { background: var(--accent-soft); }
+.grid td.lead { font-weight: 600; }
+.grid th:first-child, .grid td:first-child { position: sticky; left: 0; z-index: 1; }
+.grid td:first-child { background: var(--surface); color: var(--accent); }
+.grid tbody tr:nth-child(even) td:first-child { background: var(--bg); }
+.grid th:first-child { z-index: 3; }
+.grid a { color: var(--accent); }
+
+.company-part { display: inline-flex; align-items: center; gap: 10px; }
+/* Dwie mapy procesów obok siebie. */
+.map.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.side-map > h2 { margin: 0 4px 10px; font-size: 16px; display: flex; justify-content: space-between; }
+.side-map > h2 span { color: var(--muted); font-weight: 400; }
+.side-map .map { padding-bottom: 0; }
+.side-map .band-grid, .side-map .map:not(.bands) { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+@media (max-width: 900px) { .map.two { grid-template-columns: minmax(0, 1fr); } }

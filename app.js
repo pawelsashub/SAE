@@ -1,8 +1,8 @@
 // Numer wersji w adresie zmieniaj razem z index.html, żeby przeglądarki pobrały nowe pliki.
 import {
   SHEETS, DICT, ME_ITEMS, CLAUDE_ITEMS, INTERVIEW_ITEMS, SOURCE_ITEMS, PROCESS_ITEMS, SCHEDULE_ITEMS,
-  STEP_ITEMS, PEOPLE_ITEMS, TOOL_ITEMS, HANDOFF_ITEMS, NOTE_ITEMS,
-} from "./data.js?v=8";
+  STEP_ITEMS, PEOPLE_ITEMS, TOOL_ITEMS, HANDOFF_ITEMS, NOTE_ITEMS, BACKLOG_ITEMS,
+} from "./data.js?v=11";
 
 // Firmy w module Business Mapping. Każda kolejna firma dostanie własny arkusz.
 const COMPANIES = [{ id: "ewesa", name: "Ewesa" }];
@@ -20,7 +20,7 @@ const MODULES = {
     label: "Business Mapping",
     title: "Business Mapping",
     sub: "Mapa firmy z różnych stron: procesy, kroki, osoby, narzędzia, przekazania pracy i źródła danych.",
-    tabs: ["processes", "steps", "people", "tools", "handoffs", "sources", "interviews", "schedule", "notes"],
+    tabs: ["processes", "steps", "people", "tools", "handoffs", "sources", "interviews", "schedule", "notes", "backlog"],
     icon: '<rect x="3" y="4" width="6" height="5" rx="1"/><rect x="15" y="4" width="6" height="5" rx="1"/><rect x="9" y="15" width="6" height="5" rx="1"/><path d="M6 9v3h12V9M12 12v3"/>',
   },
 };
@@ -62,7 +62,7 @@ const TABS = {
     ],
   },
   processes: {
-    label: "Mapa procesów", seed: PROCESS_ITEMS, view: "map", statuses: DICT.processStatus, noteAs: "Proces",
+    label: "Aktualna mapa procesów", seed: PROCESS_ITEMS, view: "map", statuses: DICT.processStatus, noteAs: "Proces",
     groupings: [
       {
         key: "type", label: "Układ: mapa firmy", groups: DICT.processType, none: "Bez typu", bands: true,
@@ -74,14 +74,14 @@ const TABS = {
       },
       { key: "area", label: "Układ: obszary", groups: DICT.processArea, none: "Bez obszaru" },
     ],
-    defaults: { status: "Szkic", area: DICT.processArea[1], type: "Główny" }, excerpt: "short",
+    defaults: { status: "Szkic", area: DICT.processArea[1], type: "Główny", state: "Aktualny" }, excerpt: "short",
     meta: (it) => [
       ownSteps(it).length ? `Schemat, kroki: ${ownSteps(it).length}` : countLabel(stepsOfProcess(it).length, "powiązane kroki"),
       phasesOf(it).join(" → "),
       it.who,
     ],
     detail: [
-      ["Obszar", "area"], ["Typ", "type"], ["Krótki opis", "short"], ["Opis szczegółowy", "desc"], ["Kto wykonuje", "who"],
+      ["Stan", "state"], ["Obszar", "area"], ["Typ", "type"], ["Krótki opis", "short"], ["Opis szczegółowy", "desc"], ["Kto wykonuje", "who"],
       ["Narzędzia", "tools"], ["Problemy i wąskie gardła", "problems"], ["Pomysły na AI", "ideas"], ["Materiały", "materials"],
       ["Źródło informacji", "source"], ["Proces AOP", "aop"], ["Kategoria APQC", "apqc"], ["Uwagi", "notes"],
     ],
@@ -89,6 +89,7 @@ const TABS = {
       { key: "name", label: "Proces", required: true },
       { key: "area", label: "Obszar", options: DICT.processArea },
       { key: "type", label: "Typ", options: DICT.processType },
+      { key: "state", label: "Stan (mapa aktualna czy docelowa)", options: DICT.processState },
       { key: "short", label: "Krótki opis (na kafelek)" },
       { key: "desc", label: "Opis szczegółowy", type: "textarea" },
       { key: "who", label: "Kto wykonuje" },
@@ -97,7 +98,7 @@ const TABS = {
     ],
   },
   steps: {
-    label: "Kroki", seed: STEP_ITEMS, view: "map", statuses: DICT.processStatus, noteAs: "Krok",
+    label: "Realny workflow", seed: STEP_ITEMS, view: "map", statuses: DICT.processStatus, noteAs: "Krok",
     groupings: [{ key: "stage", label: "Układ: etapy", groups: DICT.processStage, none: "Bez etapu" }],
     excerpt: "short",
     meta: (it) => [it.nr, it.people],
@@ -190,7 +191,13 @@ const TABS = {
     formHint: "Zapis doda wiersz w arkuszu i założy folder rozmowy z dokumentem na transkrypcję.",
   },
   schedule: {
-    label: "Harmonogram", seed: SCHEDULE_ITEMS, statuses: DICT.scheduleStatus, excerpt: "desc",
+    label: "Harmonogram", seed: SCHEDULE_ITEMS, statuses: DICT.scheduleStatus, excerpt: "desc", view: "table",
+    // Kolumny jak w arkuszu: [nagłówek, pole, szerokość w pikselach].
+    columns: [
+      ["Kod", "nr", 60], ["Pozycja", "name", 260], ["Typ", "type", 130], ["Tydzień", "week", 80], ["Od", "from", 95], ["Do", "to", 95],
+      ["Zakres / po co", "desc", 380], ["Odpowiedzialny / dostarcza", "owner", 180], ["Procesy AOP", "aop", 110],
+      ["Priorytet", "priority", 100], ["Status", "status", 120], ["Data wykonania", "done", 110], ["Link / wynik", "link", 160], ["Uwagi", "notes", 280],
+    ],
     meta: (it) => [it.nr, it.type, it.week, it.from && it.to ? `${it.from} – ${it.to}` : "", it.owner],
     detail: [
       ["Kod", "nr"], ["Typ", "type"], ["Tydzień", "week"], ["Od", "from"], ["Do", "to"], ["Zakres / po co", "desc"],
@@ -211,6 +218,18 @@ const TABS = {
       { key: "author", label: "Autor" },
     ],
   },
+  backlog: {
+    label: "Do wdrożenia", seed: BACKLOG_ITEMS, newestFirst: true, statuses: DICT.backlogStatus,
+    defaults: { status: "Nowy" }, excerpt: "desc",
+    meta: (it) => [it.date, it.links ? "ma linki" : ""],
+    detail: [["Opis", "desc"], ["Źródła i linki", "links"], ["Data", "date"]],
+    form: [
+      { key: "name", label: "Nazwa", required: true },
+      { key: "desc", label: "Opis", type: "textarea" },
+      { key: "links", label: "Źródła i linki (każdy w osobnej linii)", type: "textarea" },
+      { key: "status", label: "Status", options: DICT.backlogStatus },
+    ],
+  },
 };
 
 const ALL_TABS = Object.keys(TABS);
@@ -224,6 +243,7 @@ const TONE = {
   "Do przejrzenia": "todo", "Przejrzane": "prog", "Zmapowane": "done",
   "Planowane": "idea", "Zrobione": "done", "Przesunięte": "off", "Anulowane": "off",
   "Pracuje": "done", "Nie pracuje": "off", "W użyciu": "done",
+  "Nowy": "todo", "Odłożony": "off",
 };
 
 const LOCAL_KEY = "sae.localItems.v1";
@@ -257,6 +277,7 @@ const state = {
   local: readStore(LOCAL_KEY, {}),
   trail: [],                         // ścieżka w oknie szczegółów: [{ tab, id }]
   flowLayout: "phases",              // układ schematu procesu: phases | wide | lanes
+  mapState: "current",               // która mapa procesów: current | target | both
 };
 state.tab = MODULES[state.module].tabs.includes(saved.tab) ? saved.tab : MODULES[state.module].tabs[0];
 
@@ -310,9 +331,15 @@ function itemsOf(tab) {
   return [...(state.local[tab] || []), ...seed];
 }
 
+// Proces bez wpisanego stanu traktujemy jako aktualny.
+const isTarget = (p) => String(p.state || "").trim() === "Docelowy";
+const MAP_LABEL = { current: "Aktualna mapa procesów", target: "Docelowa mapa procesów", both: "Mapa procesów: aktualna i docelowa" };
+const inMapState = (p) => state.mapState === "both" || isTarget(p) === (state.mapState === "target");
+
 function visibleItems() {
   const q = state.query.trim().toLowerCase();
   return itemsOf(state.tab).filter((it) => {
+    if (state.tab === "processes" && !inMapState(it)) return false;
     if (state.status && it.status !== state.status) return false;
     return !q || Object.values(it).filter((v) => typeof v !== "object").join(" ").toLowerCase().includes(q);
   });
@@ -514,7 +541,9 @@ function render() {
   $("companyBar").hidden = state.module !== "mapping";
   $("company").innerHTML = COMPANIES.map((c) => `<option value="${esc(c.id)}"${c.id === state.company ? " selected" : ""}>${esc(c.name)}</option>`).join("");
   $("tabs").innerHTML = mod.tabs.map((key) =>
-    `<button role="tab" class="tab" data-tab="${key}" type="button" aria-selected="${key === state.tab}">${esc(TABS[key].label)} <span class="count">${itemsOf(key).length}</span></button>`).join("");
+    `<button role="tab" class="tab" data-tab="${key}" type="button" aria-selected="${key === state.tab}">${esc(key === "processes" ? MAP_LABEL[state.mapState] : TABS[key].label)} <span class="count">${(key === "processes" ? itemsOf(key).filter(inMapState) : itemsOf(key)).length}</span></button>`).join("");
+  $("mapStateBox").hidden = state.tab !== "processes";
+  $("mapState").value = state.mapState;
 
   $("statusFilter").hidden = !cfg.statuses.length;
   $("statusFilter").innerHTML = `<option value="">Wszystkie statusy</option>` +
@@ -531,12 +560,39 @@ function render() {
 
   const items = visibleItems();
   const isMap = cfg.view === "map";
-  $("list").hidden = isMap;
+  const isTable = cfg.view === "table";
+  $("table").hidden = !isTable;
+  $("table").innerHTML = isTable && items.length ? renderTable(state.tab, items) : "";
+  $("list").hidden = isMap || isTable;
   $("map").hidden = !isMap;
-  $("empty").hidden = items.length > 0;
-  $("map").classList.toggle("bands", isMap && Boolean(currentGrouping(state.tab).bands));
-  if (isMap) $("map").innerHTML = items.length ? renderMap(state.tab, items) : "";
-  else $("list").innerHTML = items.map((it) => `<li>${card(state.tab, it)}</li>`).join("");
+  const twoMaps = state.tab === "processes" && state.mapState === "both";
+  $("empty").hidden = items.length > 0 || twoMaps;
+  $("empty").textContent = state.tab === "processes" && state.mapState === "target"
+    ? "Mapa docelowa jest jeszcze pusta. Dodaj proces ze stanem „Docelowy”."
+    : "Brak pozycji dla tych filtrów.";
+  $("map").classList.toggle("bands", isMap && !twoMaps && Boolean(currentGrouping(state.tab).bands));
+  $("map").classList.toggle("two", twoMaps);
+  if (twoMaps) {
+    // Dwie mapy obok siebie: po lewej stan aktualny, po prawej docelowy.
+    const side = (title, list) => `<div class="side-map"><h2>${title} <span>${list.length}</span></h2>
+      <div class="map${currentGrouping("processes").bands ? " bands" : ""}">${list.length ? renderMap("processes", list) : `<p class="stage-empty">Brak procesów w tym stanie.</p>`}</div></div>`;
+    $("map").innerHTML = side("Aktualna", items.filter((p) => !isTarget(p))) + side("Docelowa", items.filter(isTarget));
+  } else if (isMap) $("map").innerHTML = items.length ? renderMap(state.tab, items) : "";
+  else $("list").innerHTML = isTable ? "" : items.map((it) => `<li>${card(state.tab, it)}</li>`).join("");
+}
+
+// Widok tabeli: te same kolumny i kolejność co w arkuszu; kliknięcie wiersza otwiera szczegóły.
+function renderTable(tab, items) {
+  const cols = TABS[tab].columns;
+  const cell = (it, key) => (key === "status" && it.status
+    ? `<span class="pill ${TONE[it.status] || "off"}">${esc(it.status)}</span>`
+    : rich(it[key] ?? ""));
+  return `<table class="grid">
+    <colgroup>${cols.map(([, , w]) => `<col style="width:${w}px">`).join("")}</colgroup>
+    <thead><tr>${cols.map(([label]) => `<th scope="col">${esc(label)}</th>`).join("")}</tr></thead>
+    <tbody>${items.map((it) => `<tr data-open="${esc(tab)}|${esc(it.id)}" tabindex="0">${
+      cols.map(([, key], i) => `<td${i < 2 ? ' class="lead"' : ""}>${cell(it, key)}</td>`).join("")}</tr>`).join("")}</tbody>
+  </table>`;
 }
 
 const isWebUrl = (u) => /^https?:\/\/\S+$/i.test(String(u));
@@ -958,13 +1014,19 @@ document.addEventListener("click", (e) => {
     render();
   }
   else if ("close" in d) t.closest("dialog").close();
-  else if (t.id === "addBtn") openForm();
+  else if (t.id === "addBtn") openForm(state.tab, state.tab === "processes" && state.mapState === "target" ? { state: "Docelowy" } : {});
   else if (t.id === "connBtn" || "conn" in d) openConn();
 });
 
 // Moduły w menu działają też z klawiatury.
 $("modules").addEventListener("keydown", (e) => {
   if ((e.key === "Enter" || e.key === " ") && e.target.dataset.module) { e.preventDefault(); e.target.click(); }
+});
+
+// Wiersze tabeli otwierają się też klawiszem Enter.
+$("table").addEventListener("keydown", (e) => {
+  const row = e.key === "Enter" && e.target.closest("tr[data-open]");
+  if (row) openDetail(...split(row.dataset.open));
 });
 
 // Kliknięcie w tło zamyka okno.
@@ -974,6 +1036,7 @@ $("search").addEventListener("input", (e) => { state.query = e.target.value; ren
 $("statusFilter").addEventListener("change", (e) => { state.status = e.target.value; render(); });
 $("groupBy").addEventListener("change", (e) => { state.grouping[state.tab] = e.target.value; render(); });
 $("company").addEventListener("change", (e) => { state.company = e.target.value; render(); });
+$("mapState").addEventListener("change", (e) => { state.mapState = e.target.value; render(); });
 $("detail").addEventListener("change", (e) => {
   if (e.target.id === "flowLayout") { state.flowLayout = e.target.value; renderDetail(); }
 });

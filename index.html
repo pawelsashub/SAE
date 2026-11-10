@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="icon" type="image/svg+xml" href="logo.svg">
-  <link rel="stylesheet" href="styles.css?v=8">
+  <link rel="stylesheet" href="styles.css?v=11">
 </head>
 <body>
   <div class="shell">
@@ -40,7 +40,14 @@
       <div class="company" id="companyBar" hidden>
         <label for="company">Firma</label>
         <select id="company"></select>
-        <span>Kolejne firmy pojawią się na tej liście.</span>
+        <span id="mapStateBox" class="company-part">
+        <label for="mapState">Mapa</label>
+        <select id="mapState">
+          <option value="current">Aktualna</option>
+          <option value="target">Docelowa</option>
+          <option value="both">Obie obok siebie</option>
+        </select>
+        </span>
       </div>
 
       <div class="tabs" id="tabs" role="tablist"></div>
@@ -54,6 +61,7 @@
 
       <ul class="list" id="list"></ul>
       <div class="map" id="map" hidden></div>
+      <div class="table-wrap" id="table" hidden></div>
       <p class="empty" id="empty" hidden>Brak pozycji dla tych filtrów.</p>
     </main>
   </div>
@@ -62,6 +70,6 @@
   <dialog id="form" class="dialog"></dialog>
   <dialog id="conn" class="dialog"></dialog>
 
-  <script type="module" src="app.js?v=8"></script>
+  <script type="module" src="app.js?v=11"></script>
 </body>
 </html>

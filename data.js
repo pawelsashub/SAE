@@ -45,6 +45,7 @@ export const DICT = {
   processStatus: ["Szkic", "Do potwierdzenia", "Potwierdzony"],
   processType: ["Zarządczy", "Główny", "Wspierający"],
   stepKind: ["Czynność", "Decyzja", "Start", "Koniec"],
+  processState: ["Aktualny", "Docelowy"],
   personStatus: ["Pracuje", "Nie pracuje", "Do potwierdzenia"],
   personForm: ["Zespół", "Współpracownik zewnętrzny", "Firma zewnętrzna"],
   toolCategory: [
@@ -60,6 +61,7 @@ export const DICT = {
     "Inne",
   ],
   toolStatus: ["W użyciu", "Do potwierdzenia"],
+  backlogStatus: ["Nowy", "W toku", "Zrobione", "Odłożony"],
   noteTarget: ["Proces", "Krok", "Osoba", "Narzędzie", "Źródło danych", "Wywiad", "Ogólna"],
   sourceType: [
     "Folder Google Drive",
@@ -233,5 +235,16 @@ export const NOTE_ITEMS = [
     element: "K1",
     name: "Przykład: notatkę można dopisać do procesu, kroku, osoby albo narzędzia.",
     author: "",
+  },
+];
+
+export const BACKLOG_ITEMS = [
+  {
+    nr: 1,
+    date: "10.11.2026",
+    name: "Przykład: pomysł do wdrożenia",
+    desc: "Tak wygląda pozycja na liście rzeczy do wdrożenia. Możesz dopisać opis i wkleić linki.",
+    links: "https://example.com",
+    status: "Nowy",
   },
 ];
