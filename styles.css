@@ -209,4 +209,4 @@ textarea { resize: vertical; min-height: 84px; }
 .flow-box svg { display: block; margin: 0 auto; }
 .flow-box g.node:hover { opacity: .8; }
 .flow-legend { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
-.flow-legend i { width: 12px; height: 12px; border-radius: 3px; background: #fdf0d5; border: 1px solid #b7791f; flex: none; }
+.flow-legend i { width: 14px; height: 12px; border-radius: 6px; background: #fff; border: 1px dashed #5d6b68; flex: none; }

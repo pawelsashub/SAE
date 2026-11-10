@@ -2,7 +2,7 @@
 import {
   SHEETS, DICT, ME_ITEMS, CLAUDE_ITEMS, INTERVIEW_ITEMS, SOURCE_ITEMS, PROCESS_ITEMS, SCHEDULE_ITEMS,
   STEP_ITEMS, PEOPLE_ITEMS, TOOL_ITEMS, HANDOFF_ITEMS, NOTE_ITEMS,
-} from "./data.js?v=7";
+} from "./data.js?v=8";
 
 // Firmy w module Business Mapping. Każda kolejna firma dostanie własny arkusz.
 const COMPANIES = [{ id: "ewesa", name: "Ewesa" }];
@@ -76,7 +76,7 @@ const TABS = {
     ],
     defaults: { status: "Szkic", area: DICT.processArea[1], type: "Główny" }, excerpt: "short",
     meta: (it) => [
-      ownSteps(it).length ? `Schemat: ${ownSteps(it).length} kroków` : countLabel(stepsOfProcess(it).length, "powiązane kroki"),
+      ownSteps(it).length ? `Schemat, kroki: ${ownSteps(it).length}` : countLabel(stepsOfProcess(it).length, "powiązane kroki"),
       phasesOf(it).join(" → "),
       it.who,
     ],
@@ -644,7 +644,7 @@ function renderDetail() {
             `<option value="${v}"${v === state.flowLayout ? " selected" : ""}>${l}</option>`).join("")}
         </select></div>
       <div class="flow-box" id="flowBox">Rysuję schemat…</div>
-      <p class="flow-legend"><i></i>krok z opisanym problemem. Kliknij krok, żeby zobaczyć szczegóły.</p>
+      <p class="flow-legend"><i></i>krok z innego procesu, do którego prowadzi albo z którego przychodzi strzałka. Kliknij krok, żeby zobaczyć szczegóły.</p>
     </section>` : "";
 
   $("detail").classList.toggle("wide", Boolean(relations) && !hasFlow);
@@ -696,11 +696,29 @@ function nextOf(step) {
 
 function flowText(proc, layout) {
   const steps = ownSteps(proc);
-  const ids = new Map(steps.map((s, i) => [String(s.nr), /^[A-Za-z0-9_]+$/.test(String(s.nr)) ? String(s.nr) : "N" + i]));
+  const all = itemsOf("steps");
+  const own = new Set(steps.map((s) => String(s.nr)));
+  const anyNext = steps.some((s) => nextOf(s).length);
+  // Strzałki: z kolumny „Następny krok”, a gdy jest pusta w całym procesie, po kolei.
+  const targetsOf = (s, i) => (anyNext ? nextOf(s) : steps[i + 1] ? [{ code: String(steps[i + 1].nr), label: "" }] : []);
+
+  // Kroki innych procesów, do których ten proces przekazuje pracę albo od których ją dostaje.
+  const outside = new Map();
+  steps.forEach((s, i) => targetsOf(s, i).forEach((t) => {
+    const step = !own.has(t.code) && all.find((x) => String(x.nr) === t.code);
+    if (step) outside.set(t.code, step);
+  }));
+  all.filter((x) => !own.has(String(x.nr)) && nextOf(x).some((t) => own.has(t.code)))
+    .forEach((x) => outside.set(String(x.nr), x));
+
+  const ids = new Map();
+  steps.forEach((s, i) => ids.set(String(s.nr), "S" + i));
+  [...outside.keys()].forEach((code, i) => ids.set(code, "X" + i));
+
   // Tor kroku to osoba wymieniona w nim jako pierwsza.
   const firstPerson = (s) => {
     const text = String(s.people || "").toLowerCase();
-    const at = (person) => Math.min(...namesOf(person).map((n) => text.indexOf(n.toLowerCase())).filter((i) => i >= 0));
+    const at = (person) => Math.min(...namesOf(person).map((n) => text.indexOf(n.toLowerCase())).filter((k) => k >= 0));
     return peopleOfText(s.people).sort((a, b) => at(a) - at(b))[0];
   };
   const laneOf = (s) => (layout === "lanes" ? (firstPerson(s)?.name || "Pozostali") : (s.stage || "Bez etapu"));
@@ -718,21 +736,24 @@ function flowText(proc, layout) {
     if (s.kind === "Start" || s.kind === "Koniec") return `${id}(["${label}"])`;
     return `${id}["${label}"]`;
   };
+  const outsideNode = (s) => {
+    const parent = itemsOf("processes").find((p) => String(p.nr) === String(s.process ?? "").trim());
+    const where = parent ? `proces ${parent.nr}: ${shorten(parent.name, 40)}` : "inny proces";
+    return `${ids.get(String(s.nr))}(["${mmText(s.nr)} · ${mmText(shorten(s.name, 44))}<br/>${mmText(where)}"])`;
+  };
 
   const lines = [`flowchart ${layout === "wide" ? "LR" : "TB"}`];
   groups.forEach((g, i) => {
     lines.push(`subgraph G${i}["${mmText(g.name)}"]`, ...g.steps.map(node), "end");
   });
-  // Bez kolumny „Następny krok” łączymy kroki po kolei.
-  const anyNext = steps.some((s) => nextOf(s).length);
-  steps.forEach((s, i) => {
-    const targets = anyNext ? nextOf(s) : steps[i + 1] ? [{ code: String(steps[i + 1].nr), label: "" }] : [];
-    targets.filter((t) => ids.has(t.code)).forEach((t) =>
-      lines.push(`${ids.get(String(s.nr))} -->${t.label ? `|${mmText(t.label)}|` : ""} ${ids.get(t.code)}`));
-  });
-  const warn = steps.filter((s) => s.problems).map((s) => ids.get(String(s.nr)));
-  lines.push("classDef warn fill:#fdf0d5,stroke:#b7791f,color:#3b2a00;");
-  if (warn.length) lines.push(`class ${warn.join(",")} warn;`);
+  outside.forEach((s) => lines.push(outsideNode(s)));
+
+  const arrow = (from, t) => lines.push(`${ids.get(from)} -->${t.label ? `|${mmText(t.label)}|` : ""} ${ids.get(t.code)}`);
+  steps.forEach((s, i) => targetsOf(s, i).filter((t) => ids.has(t.code)).forEach((t) => arrow(String(s.nr), t)));
+  outside.forEach((s, code) => nextOf(s).filter((t) => own.has(t.code)).forEach((t) => arrow(code, t)));
+
+  lines.push("classDef ext fill:#ffffff,stroke:#5d6b68,stroke-dasharray:5 4,color:#12211f;");
+  if (outside.size) lines.push(`class ${[...outside.keys()].map((c) => ids.get(c)).join(",")} ext;`);
   return { text: lines.join("\n"), ids };
 }
 
