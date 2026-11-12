@@ -2,7 +2,7 @@
 import {
   SHEETS, DICT, ME_ITEMS, CLAUDE_ITEMS, INTERVIEW_ITEMS, SOURCE_ITEMS, PROCESS_ITEMS, SCHEDULE_ITEMS,
   STEP_ITEMS, PEOPLE_ITEMS, TOOL_ITEMS, HANDOFF_ITEMS, NOTE_ITEMS, BACKLOG_ITEMS,
-} from "./data.js?v=11";
+} from "./data.js?v=13";
 
 // Firmy w module Business Mapping. Każda kolejna firma dostanie własny arkusz.
 const COMPANIES = [{ id: "ewesa", name: "Ewesa" }];
@@ -20,8 +20,16 @@ const MODULES = {
     label: "Business Mapping",
     title: "Business Mapping",
     sub: "Mapa firmy z różnych stron: procesy, kroki, osoby, narzędzia, przekazania pracy i źródła danych.",
-    tabs: ["processes", "steps", "people", "tools", "handoffs", "sources", "interviews", "schedule", "notes", "backlog"],
+    tabs: ["processes", "steps", "people", "tools", "handoffs", "sources", "interviews", "schedule", "notes"],
     icon: '<rect x="3" y="4" width="6" height="5" rx="1"/><rect x="15" y="4" width="6" height="5" rx="1"/><rect x="9" y="15" width="6" height="5" rx="1"/><path d="M6 9v3h12V9M12 12v3"/>',
+  },
+  // Sprawy porządkowe aplikacji. Kolejne ustawienia (np. kolory) dojdą tu jako następne zakładki.
+  admin: {
+    label: "Administracja",
+    title: "Administracja",
+    sub: "Lista rzeczy do wdrożenia. Z czasem dojdą tu ustawienia aplikacji.",
+    tabs: ["backlog"],
+    icon: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>',
   },
 };
 
