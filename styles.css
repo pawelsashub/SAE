@@ -127,6 +127,15 @@ form.dialog-body { display: grid; gap: 12px; }
 label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; }
 label input, label select, label textarea { border: 1px solid var(--line); background: var(--bg); border-radius: 9px; padding: 9px 11px; font-weight: 400; font-size: 15px; width: 100%; }
 textarea { resize: vertical; min-height: 84px; }
+/* Dyktowanie: mikrofon w prawym górnym rogu pola. */
+.voice { position: relative; display: block; }
+.voice input, .voice textarea { padding-right: 48px; }
+.mic { position: absolute; top: 3px; right: 3px; width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
+.mic:hover { color: var(--accent); background: var(--accent-soft); }
+.mic:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mic.on { background: #c2410c; color: #fff; animation: mic-pulse 1.4s ease-in-out infinite; }
+@keyframes mic-pulse { 50% { box-shadow: 0 0 0 5px rgba(194, 65, 12, .25); } }
+@media (prefers-reduced-motion: reduce) { .mic.on { animation: none; } }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
 

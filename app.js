@@ -2,7 +2,7 @@
 import {
   SHEETS, DICT, ME_ITEMS, CLAUDE_ITEMS, INTERVIEW_ITEMS, SOURCE_ITEMS, PROCESS_ITEMS, SCHEDULE_ITEMS,
   STEP_ITEMS, PEOPLE_ITEMS, TOOL_ITEMS, HANDOFF_ITEMS, NOTE_ITEMS, BACKLOG_ITEMS,
-} from "./data.js?v=13";
+} from "./data.js?v=14";
 
 // Firmy w module Business Mapping. Każda kolejna firma dostanie własny arkusz.
 const COMPANIES = [{ id: "ewesa", name: "Ewesa" }];
@@ -867,6 +867,71 @@ function isoToday() {
 }
 const plDate = (iso) => iso.split("-").reverse().join(".");
 
+// Dyktowanie: przycisk mikrofonu przy polach tekstowych. Mowę na tekst zamienia przeglądarka
+// (Chrome, Edge, Safari); gdzie tego nie potrafi, przycisku nie ma i zostaje klawiatura.
+const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+const MIC_ICON = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>`;
+const withMic = (control) => Speech
+  ? `<span class="voice">${control}<button class="mic" type="button" data-mic aria-label="Dyktuj" aria-pressed="false" title="Dyktuj">${MIC_ICON}</button></span>`
+  : control;
+const MIC_ERRORS = {
+  "not-allowed": "Przeglądarka nie ma zgody na mikrofon. Zezwól na mikrofon dla tej strony i spróbuj ponownie.",
+  "service-not-allowed": "Dyktowanie jest wyłączone w tej przeglądarce albo w ustawieniach urządzenia.",
+  "audio-capture": "Nie znaleziono mikrofonu.",
+  network: "Dyktowanie wymaga połączenia z internetem.",
+};
+let dictation = null; // trwające dyktowanie: { rec, btn }
+
+function stopDictation() {
+  if (dictation) dictation.rec.stop();
+}
+
+function toggleDictation(btn) {
+  const same = dictation && dictation.btn === btn;
+  stopDictation();
+  if (same) return;
+  const field = btn.parentElement.querySelector("input, textarea");
+  const error = btn.closest("form")?.querySelector(".error");
+  const rec = new Speech();
+  rec.lang = "pl-PL";
+  rec.continuous = true;
+  rec.interimResults = true;
+  const base = field.value.trimEnd();
+  rec.onresult = (e) => {
+    const said = [...e.results].map((r) => r[0].transcript).join("").trim();
+    field.value = base && said ? `${base} ${said}` : base || said;
+    if (field.tagName === "TEXTAREA") field.scrollTop = field.scrollHeight;
+  };
+  rec.onerror = (e) => {
+    if (e.error === "no-speech" || e.error === "aborted" || !error) return;
+    error.textContent = MIC_ERRORS[e.error] || "Dyktowanie nie zadziałało. Spróbuj ponownie albo wpisz tekst.";
+    error.hidden = false;
+  };
+  rec.onend = () => {
+    btn.classList.remove("on");
+    btn.setAttribute("aria-pressed", "false");
+    btn.title = "Dyktuj";
+    if (dictation && dictation.rec === rec) dictation = null;
+  };
+  try {
+    rec.start();
+  } catch {
+    return;
+  }
+  dictation = { rec, btn };
+  if (error) error.hidden = true;
+  btn.classList.add("on");
+  btn.setAttribute("aria-pressed", "true");
+  btn.title = "Zatrzymaj dyktowanie";
+  field.focus();
+}
+
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-mic]");
+  if (btn) { e.preventDefault(); toggleDictation(btn); }
+});
+for (const id of ["form", "detail", "conn"]) document.getElementById(id).addEventListener("close", stopDictation);
+
 // Formularz dodawania. `preset` wypełnia pola z góry (np. notatka do konkretnego elementu).
 function openForm(tab = state.tab, preset = {}) {
   const cfg = TABS[tab];
@@ -879,11 +944,11 @@ function openForm(tab = state.tab, preset = {}) {
     if (f.options) {
       control = `<select name="${f.key}">${f.options.map((o) => `<option${o === val ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
     } else if (f.type === "textarea") {
-      control = `<textarea name="${f.key}"${req}>${esc(val)}</textarea>`;
+      control = withMic(`<textarea name="${f.key}"${req}>${esc(val)}</textarea>`);
     } else if (f.type === "date") {
       control = `<input name="${f.key}" type="date" value="${isoToday()}"${req}>`;
     } else {
-      control = `<input name="${f.key}" value="${esc(val)}" placeholder="${esc(f.placeholder || "")}"${req}>`;
+      control = withMic(`<input name="${f.key}" value="${esc(val)}" placeholder="${esc(f.placeholder || "")}"${req}>`);
     }
     return `<label>${esc(f.label)}${control}</label>`;
   }).join("");
@@ -937,6 +1002,7 @@ async function withBusy(form, errorId, work) {
 document.addEventListener("submit", (e) => {
   e.preventDefault();
   const form = e.target;
+  stopDictation();
   const data = Object.fromEntries(new FormData(form));
 
   if (form.id === "addForm") {
